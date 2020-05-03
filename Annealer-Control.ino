@@ -24,17 +24,18 @@
  * 
  * TO DO list:
  * - handle anything commented with "XXXXXX"
- * - set up interrupt on Twist press, too! (may not be easy - it interrupts for anything on the encoder,
- *   regardless of what it is...
- * - do something useful with thermistor temp, at some point
+ * - do something useful with internal thermistor temp, at some point
  * - convert to using just the Twist encoder, and not start/stop buttons (maybe? buttons seem
- *   more reliable, at this point, and easier to do interrupts on
+ *   more reliable, at this point, and easier to do interrupts on). 
  * - set up IR optical detection on the case
  * - menu system of some kind
  * - saved settings for different brass (possibly allowing name edits) and ability to choose
  * - support for a casefeeder (second opto, and logic)
+ * - consider moving annealer "power on" LED to control here, or add a "status" LED. This can
+ *   be used for communication with the user when the annealer has a problem, too.
  * 
  * Version History:
+ * v 0.3 - 
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
  * 
@@ -647,23 +648,18 @@ void setup() {
   /*
    * XXXXXXX
    * 
-   * Look into error handling for Wire and lcd initialization - we need to error this out somehow! 
-   * See below for Twist initialization.
+   * Look into error handling for Wire, twist, and lcd initialization
+   * we need to error this out somehow, and make sure that we don't  
+   * proceed if control or display is toast - and also make sure
+   * that we can signal the user about it (LED flashes, if the screen
+   * isn't there, etc.
    * 
    */
-  // XXXXXX Wire.begin(); // fire up I2C
-  //Wire0.begin();
-  //lcd.begin(Wire0); // initialize our display over I2C
-  //Wire0.setClock(400000); // kick the I2C SCL to High Speed Mode of 400kHz
 
-  //if (twist.begin() == false) {
-  //  signalOurDeath();
-  //}
-  
-  Wire.begin();
-  //twist.begin(Wire);
+  // XXXXXX
+  // Wire.begin(); // twist.begin() actually fires up the bus, so we don't need this here long term
+  twist.begin(Wire);
   lcd.begin(Wire);
-  //twist.beginNoBus(Wire, QWIIC_TWIST_ADDR); 
   Wire.setClock(400000);
 
   // XXXXXX - related to internal temp sensor problem - keeping in the code for now
@@ -731,32 +727,25 @@ void setup() {
   Serial.println(delaySetPoint % 100);
 #endif
 
+  // cruft cleanup - not doing this can cause the annealer to immediately fire up if a Click event was
+  // somehow left unhandled during our last endeavor
+  twist.clearInterrupts(); 
+  (void) twist.getDiff(true);
+
+  // initial encoder state
+  twist.setCount(0);
+  twist.setColor(GREEN);
 
   // double check that we've been here for a second before we talk to the LCD
+  // This is to work around what seems to be a startup timing issue, where 
+  // the Apollo3 CPU gets through some of the init code faster than the 
+  // LCD controller is actually ready to receive it. 
+  
   if (! LCDTimer.hasPassed(LCD_STARTUP_INTERVAL) ) {
     delay(LCD_STARTUP_INTERVAL - LCDTimer.elapsed());
   } // clear to make first output to the LCD, now
 
-  lcd.clear(); // blank the screen to start
-
-  // check on the Twist, and die if it's not there. Set initial knob color
-  // to GREEN, and zero out the count
-  
-
-  // cruft cleanup - not doing this can cause the annealer to immediately fire up if a Click event was
-  // somehow left unhandled during our last endeavor
-  //if (twist.isConnected() == false) {
-  if (twist.begin() == false) {
-    Serial.println("Can't find the twist!");
-  }
-  Wire.setClock(400000);
-  twist.clearInterrupts(); 
-  twist.setColor(GREEN);
-  twist.setCount(0);
-  (void) twist.getDiff(true);
-
-
-  // show something on the screen - we know setup is done at this point, too!
+  lcd.clear();
   updateLCD(true);
   LCDTimer.restart();
 
@@ -764,6 +753,9 @@ void setup() {
 #ifdef DEBUG
   Serial.println("DEBUG: END OF SETUP!");
 #endif
+
+// XXXXXX - cleanup the DEBUG_VERBOSE - some of this below is temporary code, and may
+// not be appropriate, long term
 
 #ifdef DEBUG_VERBOSE
   float tempamps = 0;
