@@ -24,7 +24,6 @@
  * 
  * TO DO list:
  * - handle anything commented with "XXXXXX"
- * - do something useful with internal thermistor temp, at some point
  * - convert to using just the Twist encoder, and not start/stop buttons (maybe? buttons seem
  *   more reliable, at this point, and easier to do interrupts on). 
  * - set up IR optical detection on the case
@@ -35,7 +34,7 @@
  *   be used for communication with the user when the annealer has a problem, too.
  * 
  * Version History:
- * v 0.3 - 
+ * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
  * 
@@ -52,7 +51,7 @@
 #include "Annealer-Control.h" // globals and constants live here!
 
 
-#define VERSION   0.2
+#define VERSION   0.4
 
 /*
  * DEBUG - uncomment the #define to set us to DEBUG mode! Make sure you open a serial 
@@ -122,8 +121,6 @@ int timerCurrent = 0;
 
 TWIST twist;
 
-TwoWire Wire0(0);
-
  /*
   * TIMERS - Chrono can set up a metronome (replaces old Metro library) to establish
   * a periodic time for accomplishing a task, based on milliseconds
@@ -183,8 +180,7 @@ int temp = 0;
 
 
 /******************************************************
- * FUNCTIONS - internal things - most functions are in
- * separate .cpp files!
+ * FUNCTIONS 
  ******************************************************/
 
 /* 
@@ -306,6 +302,11 @@ void checkPowerSensors(boolean reset) {
 #endif
 }
 
+
+// XXXXXX - at the moment, this requires Nathan Seidle's fix for Issue 158 in the Arduino_Apollo3 core
+// Branch is here: https://github.com/sparkfun/Arduino_Apollo3/tree/adc_temperatureSensor
+// This should make it back to the Arduino_Apollo3 core in 1.0.31 or .32.
+
 void checkThermistors(boolean reset) {
 
   if (reset) {
@@ -315,12 +316,12 @@ void checkThermistors(boolean reset) {
       Serial.print("DEBUG: THERM1_PIN read: "); Serial.println(temp);
       Therm1Avg = Therm1Avg + temp;
   
-      temp = analogRead(ADC_INTERNAL_TEMP);
+      temp = getTemperature();
       Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
       internalTemp = internalTemp + temp ;
 #else
       Therm1Avg = Therm1Avg + analogRead(THERM1_PIN);
-      internalTemp = internalTemp + analogRead(ADC_INTERNAL_TEMP);
+      internalTemp = internalTemp + getTemperature();
 #endif
     }
   
@@ -335,12 +336,7 @@ void checkThermistors(boolean reset) {
     Serial.println(internalTemp);
   #endif
   
-    Therm1Temp = calcSteinhart(Therm1Avg);
-  
-    // The internal temp thermistor delivers 3.8 mV per degree C, apparently. We also seem to have an offset involved - 242 on my
-    // system. Waiting on SparkFun to respond about the example code they supply, because it appears to be way off.
-    internalTemp = ( ( internalTemp * VREF / RESOLUTION_MAX) / 0.0038 - 242) * 1.8 + 32; // 3.8 mV per degree, apparently. 
-    
+    Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
     internalTempHigh = internalTemp;
     
@@ -354,7 +350,7 @@ void checkThermistors(boolean reset) {
     }
 
     // this algorithm is incorrect, and will be updated when a fix is available from SparkFun
-    internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * ( ( (analogRead(ADC_INTERNAL_TEMP) * VREF / RESOLUTION_MAX) / 0.0038 - 242 ) * 1.8 + 32 ) ) );
+    internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getTemperature()) );
     if (internalTemp > internalTempHigh) {
       internalTempHigh = internalTemp;
     }
@@ -744,7 +740,7 @@ void setup() {
   if (! LCDTimer.hasPassed(LCD_STARTUP_INTERVAL) ) {
     delay(LCD_STARTUP_INTERVAL - LCDTimer.elapsed());
   } // clear to make first output to the LCD, now
-
+ 
   lcd.clear();
   updateLCD(true);
   LCDTimer.restart();
