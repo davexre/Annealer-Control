@@ -9,6 +9,11 @@
  * 
  * This code is heavily informed by posts from ottsm there - specifically post 1050
  * 
+ * Requires:
+ *  - SparkFun Apollo3 core 1.1.1 or above (for getInternalTemp())
+ *  - SparkFun Qwiic Twist library
+ *  - SparkFun SerLCD library
+ * 
  * 
  * So, why the whole "#ifdef DEBUG" thing, rather than a subroutine to print out debug messages?
  * I just don't want the DEBUG code to compile in the final code, if we don't need to debug things.
@@ -303,9 +308,6 @@ void checkPowerSensors(boolean reset) {
 }
 
 
-// XXXXXX - at the moment, this requires Nathan Seidle's fix for Issue 158 in the Arduino_Apollo3 core
-// Branch is here: https://github.com/sparkfun/Arduino_Apollo3/tree/adc_temperatureSensor
-// This should make it back to the Arduino_Apollo3 core in 1.0.31 or .32.
 
 void checkThermistors(boolean reset) {
 
@@ -316,12 +318,12 @@ void checkThermistors(boolean reset) {
       Serial.print("DEBUG: THERM1_PIN read: "); Serial.println(temp);
       Therm1Avg = Therm1Avg + temp;
   
-      temp = getTemperature();
+      temp = getInternalTemp();
       Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
       internalTemp = internalTemp + temp ;
 #else
       Therm1Avg = Therm1Avg + analogRead(THERM1_PIN);
-      internalTemp = internalTemp + getTemperature();
+      internalTemp = internalTemp + getInternalTemp();
 #endif
     }
   
@@ -350,7 +352,7 @@ void checkThermistors(boolean reset) {
     }
 
     // this algorithm is incorrect, and will be updated when a fix is available from SparkFun
-    internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getTemperature()) );
+    internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getInternalTemp()) );
     if (internalTemp > internalTempHigh) {
       internalTempHigh = internalTemp;
     }
@@ -657,11 +659,6 @@ void setup() {
   twist.begin(Wire);
   lcd.begin(Wire);
   Wire.setClock(400000);
-
-  // XXXXXX - related to internal temp sensor problem - keeping in the code for now
-  //    note: the vcc var is removed above! Need a new float for that. 
-  // determine the actual vcc for use in internal temp calculations
-  // vcc = (float) analogRead(ADC_INTERNAL_VCC_DIV3) * 6 / RESOLUTION_MAX;
   
   
   // Initial analog sensor baselines
@@ -1067,8 +1064,7 @@ void loop() {
     // Close the solenoid at the right time
     // Update the display on normal cycle
     ////////////////////////////////
-    
-    // XXXXXX - update the display correctly!
+
     case DROP_CASE_TIMER:
 #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER"); stateChange = false; }
@@ -1083,7 +1079,6 @@ void loop() {
       if (Timer.hasPassed(CASE_DROP_DELAY)) {
         digitalWrite(SOLENOID_PIN, LOW);
         annealState = DELAY;
-        // XXXXXX Timer = 0;
         Timer.restart();
         updateLCDState();
 
