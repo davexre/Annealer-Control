@@ -69,11 +69,12 @@
 // EEPROM addresses - int is 2 bytes, so make sure these are even numbers!
 #define ANNEAL_ADDR   0
 #define DELAY_ADDR    2
+#define CASEDROP_ADDR 4
 #define EE_FAILSAFE_ADDR  100
-#define EE_FAILSAFE_VALUE 42
+#define EE_FAILSAFE_VALUE 43  // bump in v0.4
 
 // Control constants
-#define CASE_DROP_DELAY           500     // milliseconds
+#define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
 #define ANNEAL_TIME_DEFAULT       10      // hundredths of seconds - for the timer formats
 #define DELAY_DEFAULT             50      // hundredths of seconds - for the timer formats
 #define LCD_STARTUP_INTERVAL      1000    // milliseconds - let the screen fire up and come online before we hit it
