@@ -104,4 +104,18 @@
 #define LCDSTARTUP_INTERVAL   1000
 
 
+enum AnnealState
+{
+  WAIT_BUTTON,
+  WAIT_CASE,
+  START_ANNEAL,
+  ANNEAL_TIMER,
+  DROP_CASE,
+  DROP_CASE_TIMER,
+  DELAY
+};
+
+extern AnnealState annealState;
+
+
 #endif // _ANNEALER_CONTROL_H

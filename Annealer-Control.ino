@@ -39,7 +39,8 @@
  *   be used for communication with the user when the annealer has a problem, too.
  * 
  * Version History:
- * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup
+ * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
+ *         to separate files (AnnealLCD.cpp and .h)
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
@@ -55,6 +56,7 @@
 #include <ctype.h>  // presumably to get enumerations
 
 #include "Annealer-Control.h" // globals and constants live here!
+#include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
 
 
 #define VERSION   0.4
@@ -86,16 +88,7 @@
  * set one up for our future "Mayan" mode, if we get there, too.
  */
 
-enum AnnealState
-{
-  WAIT_BUTTON,
-  WAIT_CASE,
-  START_ANNEAL,
-  ANNEAL_TIMER,
-  DROP_CASE,
-  DROP_CASE_TIMER,
-  DELAY
-} annealState;
+enum AnnealState annealState;
 
 const char *annealStateDesc[] = {
   "  Press Start",
@@ -116,10 +109,10 @@ const char *annealStateDesc[] = {
 SerLCD lcd; // Initialize the LCD with default I2C address 0x72
 
 // these are GLOBAL - be careful!
-String output;
-int LCDquotient = 0;
-int LCDremainder = 0;
-int timerCurrent = 0;
+// String output;
+// int LCDquotient = 0;
+// int LCDremainder = 0;
+// int timerCurrent = 0;
 
 /*
  * ENCODER - initialize using SparkFun's Twist library
@@ -373,255 +366,7 @@ void checkThermistors(boolean reset) {
     
   }
 }
-/*
- * updateLCD
- * 
- * Arguments
- * 
- * boolean full - write the whole screen?
- * 
- * Refresh the LCD - this code will get called in a couple places, so a subroutine makes sense.
- * This code is a little tedious - again, trying to leave printf out of the picture. Also, there
- * are preprocessor defines here (rather than above) - just keeping them local for ease of
- * reference and manipulation. 
- * 
- * Right now, this is just a basic display. Eventually, this should become a menu system of some
- * kind, rather than just a simple data display.
- * 
- * The LCD is 20x4
- * 
- * Try to do this as lightweight as possible. Here's the layout:
- * 
- * 01234567890123456789  <-- column numbers, not printed!!
- * Set 00.00 Time 00.00
- * Amp 00.00 Volt 00.00
- * Thrm 00.0 IntT  00.0
- * State: xxxxxxxxxxxxx
- */
-void updateLCD(boolean full) {
-  
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: updating the full LCD");
-  #endif
 
-  String outputFull;
-  outputFull = "";
-
-  if (full) {
-    lcd.clear();
-    lcd.setCursor(LCD_SETPOINT_LABEL);
-    
-    outputFull.concat("Set ");
-    updateLCDSetPoint(false);
-    outputFull.concat(output);
-    outputFull.concat(" Time ");
-    updateLCDTimer(false);
-    outputFull.concat(output);
-    lcd.print(outputFull);
-    #ifdef DEBUG_LCD
-    Serial.println(outputFull);
-    #endif
-
-    outputFull = "";
-
-    // not sure why I need to do this, yet - the text "Amp "
-    // doesn't print out, otherwise...
-    lcd.setCursor(LCD_CURRENT_LABEL);
-    lcd.print("Amp ");
-    lcd.setCursor(LCD_CURRENT_LABEL);
-    outputFull.concat("Amp ");
-    updateLCDPowerDisplay("false");
-    outputFull.concat(output);
-    #ifdef DEBUG_LCD
-    Serial.println(outputFull);
-    #endif
-    lcd.print(outputFull);
-
-
-    outputFull = "";
-    lcd.setCursor(LCD_THERM1_LABEL);
-    outputFull.concat("Thrm ");
-    updateLCDTemps(false);
-    outputFull.concat(output);
-    lcd.print(outputFull);
-    #ifdef DEBUG_LCD
-    Serial.println(outputFull);
-    #endif
-    
-    lcd.setCursor(LCD_STATE_LABEL);
-    lcd.print("State:");
-
-    updateLCDState();
-  }
-  else {
-    updateLCDSetPoint(true);
-    updateLCDTimer(true);
-    updateLCDPowerDisplay(true);
-    updateLCDTemps(true);
-    updateLCDState();
-  }
-  
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: done updating LCD");
-  #endif
-}
-
-// no boolean, here - we're likely always going to just do this
-void updateLCDState() {
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print state");
-  #endif
-  lcd.setCursor(LCD_STATE);
-  lcd.print(annealStateDesc[annealState]);
-
-
-}
-
-
-// set point is in hundredths of seconds! if it's less than 999, we need a space
-void updateLCDSetPoint(boolean sendIt) {
-  
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print set point");
-  #endif
-
-  output = "";
-  
-  LCDquotient = annealSetPoint / 100;
-  LCDremainder = annealSetPoint % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-  if (sendIt) {
-    lcd.setCursor(LCD_SETPOINT);
-    lcd.print(output);
-  }
-
-}
-
-// print most of the line at once! Save's us a cursor reposition and a print
-void updateLCDPowerDisplay(boolean sendIt) {
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print amps and volts");
-  #endif
-
-  output = "";
-
-  LCDremainder = (int) (amps * 100);
-  LCDquotient = LCDremainder / 100;
-  LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-  output.concat(" Volt ");
-
-  LCDremainder = (int) (volts * 100);
-  LCDquotient = LCDremainder / 100;
-  LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-  #ifdef DEBUG_LCD
-  Serial.print("DEBUG: updateLCDPowerDisplay output: "); Serial.println(output);
-  #endif
-
-  if (sendIt) {
-    lcd.setCursor(LCD_CURRENT);
-    lcd.print(output);
-  }
-
-  
-}
-
-void updateLCDTemps(boolean sendIt) {
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print temperatures");
-  #endif
-
-  output = "";
-
-  LCDremainder = (int) (Therm1Temp * 10);
-  LCDquotient = LCDremainder / 10;
-  LCDremainder = LCDremainder % 10;
-  if (LCDquotient >= 100) {
-    output.concat(" ");
-    output.concat(LCDquotient);
-  }
-  else {
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    output.concat(LCDremainder); // should be less than 10
-  }
-  
-  output.concat(" IntT  "); 
-
-  LCDremainder = (int) (internalTemp * 10);
-  LCDquotient = LCDremainder / 10;
-  LCDremainder = LCDremainder % 10;
-
-  if (LCDquotient >= 100) {
-    output.concat(" ");
-    output.concat(LCDquotient);
-  }
-  else {
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    output.concat(LCDremainder); // should be less than 10
-  }
-
-  if (sendIt) {
-    lcd.setCursor(LCD_THERM1);
-    lcd.print(output);
-  }
-  
-}
-
-
-void updateLCDTimer(boolean sendIt) {
-  #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print timer");
-  #endif
-  
-  output = "";
-
-  
-  // if we're running a timer, do the math to print the right value, otherwise, a default
-  if (annealState == START_ANNEAL || 
-      annealState == ANNEAL_TIMER ||   
-      annealState == DELAY ) {
-        
-    timerCurrent = Timer.elapsed();
-    LCDquotient = timerCurrent / 1000;
-    LCDremainder = timerCurrent % 1000 / 10;
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    if (LCDremainder < 10) output.concat("0");
-    output.concat(LCDremainder);
-  }
-  else {
-    // this is for all the wait states *AND* DROP_CASE, so we can show 0.00 at 
-    // timer start
-    output.concat(" 0.00");
-  }
-
-  if (sendIt) {
-    lcd.setCursor(LCD_TIMER);
-    lcd.print(output);
-  }
-  
-}
 
 /**************************************************************************************************
  * setup
