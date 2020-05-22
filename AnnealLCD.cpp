@@ -57,8 +57,8 @@ int timerCurrent = 0;
  * 01234567890123456789  <-- column numbers, not printed!!
  * Set 00.00 Time 00.00
  * Amp 00.00 Volt 00.00
- * Thrm 00.0 IntT  00.0
- * State: xxxxxxxxxxxxx
+ * Thrm 00.0 IntT  00.0  <-- IntT is only for Apollo3 architecture
+ * State: xxxxxxxxxxxxx      TMax is shown, otherwise
  */
 void updateLCD(boolean full) {
   
@@ -224,10 +224,15 @@ void updateLCDTemps(boolean sendIt) {
     output.concat(".");
     output.concat(LCDremainder); // should be less than 10
   }
-  
-  output.concat(" IntT  "); 
 
+  #ifdef _AP3_VARIANT_H_
+  output.concat(" IntT  "); 
   LCDremainder = (int) (internalTemp * 10);
+  #else
+  output.concat(" TMax  ");
+  LCDremainder = (int) (Therm1TempHigh * 10);  
+  #endif
+  
   LCDquotient = LCDremainder / 10;
   LCDremainder = LCDremainder % 10;
 
@@ -241,7 +246,6 @@ void updateLCDTemps(boolean sendIt) {
     output.concat(".");
     output.concat(LCDremainder); // should be less than 10
   }
-
   if (sendIt) {
     lcd.setCursor(LCD_THERM1);
     lcd.print(output);

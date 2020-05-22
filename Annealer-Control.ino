@@ -10,37 +10,46 @@
  * This code is heavily informed by posts from ottsm there - specifically post 1050
  * 
  * Requires:
- *  - SparkFun Apollo3 core 1.1.1 or above (for getInternalTemp())
- *  - SparkFun Qwiic Twist library
  *  - SparkFun SerLCD library
  * 
- * 
+ * Options:
+ *  - SparkFun Apollo3 core 1.1.1 or above - includes an internal thermistor on the CPU, as well
+ *    as several other features that seem inviting. However, it seems to have issues with integrating
+ *    anything that needs deep hardware level integration for timing or interrupts - so standard
+ *    encoder libraries have issues, here. Also had trouble with SparkFun's Qwiic Twist (via I2C),
+ *    so couldn't use that as a substitute. As of v0.4, development on Apollo3 has been 
+ *    abandoned, maybe to continue at a later date if this situation improves and we can get
+ *    an encoder running.
+ *    
+ *    
  * So, why the whole "#ifdef DEBUG" thing, rather than a subroutine to print out debug messages?
  * I just don't want the DEBUG code to compile in the final code, if we don't need to debug things.
  * Yeah, this way is messy to read - I'm trading that for a smaller executable, and a tighter
- * execution path for the final code. This is also why I didn't pull printf in to the project, too!
+ * execution path for the final code.
  * 
  * 
  * This code assumes a couple pieces of hardware:
- * - SparkFun RedBoard Artemis (though, it attempts to adjust for a normal Arduino where it can)
- * - SparkFun AVR 20x4 LCD, connected through I2C
- * - SparkFun Qwiic Twist encoder, connected through I2C
+ * - SparkFun AVR 20x4 LCD, connected through I2C using SerLCD (though it would be easily
+ *   converted to using the LiquidCrystal library with any I2C based display)
+ * - An encoder with a click button
  * 
  * 
  * TO DO list:
  * - handle anything commented with "XXXXXX"
- * - convert to using just the Twist encoder, and not start/stop buttons (maybe? buttons seem
- *   more reliable, at this point, and easier to do interrupts on). 
  * - set up IR optical detection on the case
  * - menu system of some kind
  * - saved settings for different brass (possibly allowing name edits) and ability to choose
  * - support for a casefeeder (second opto, and logic)
  * - consider moving annealer "power on" LED to control here, or add a "status" LED. This can
  *   be used for communication with the user when the annealer has a problem, too.
+ * - if we end up abandoning Apollo3 completely, remove any platform specific code
+ * - look at dual SerLCD / LiquidCrystal support
+ * 
  * 
  * Version History:
  * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
- *         to separate files (AnnealLCD.cpp and .h)
+ *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
+ *         library (only ATmega CPUS?), cleanup architecture defines, stop developing Apollo3
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
@@ -50,13 +59,13 @@
 #include <Chrono.h>
 #include <EEPROM.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
-#include "SparkFun_Qwiic_Twist_Arduino_Library.h"
 #include <Wire.h>
 
 #include <ctype.h>  // presumably to get enumerations
 
 #include "Annealer-Control.h" // globals and constants live here!
 #include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
+#include "./Encoder.h"
 
 
 #define VERSION   0.4
@@ -108,17 +117,11 @@ const char *annealStateDesc[] = {
 
 SerLCD lcd; // Initialize the LCD with default I2C address 0x72
 
-// these are GLOBAL - be careful!
-// String output;
-// int LCDquotient = 0;
-// int LCDremainder = 0;
-// int timerCurrent = 0;
-
 /*
- * ENCODER - initialize using SparkFun's Twist library
+ * ENCODER
  */
 
-TWIST twist;
+ Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_BUTTON);
 
  /*
   * TIMERS - Chrono can set up a metronome (replaces old Metro library) to establish
@@ -137,8 +140,10 @@ float Therm1Avg = 0;
 float Therm1Temp = 0;
 float Therm1TempHigh = 0;  // track highest temp we saw
 
+#ifdef _AP3_VARIANT_H_
 float internalTemp = 0;
 float internalTempHigh = 0;  // track highest temp we saw
+#ifdef _AP3_VARIANT_H_
 
 float amps = 0;
 float volts = 0;
@@ -146,8 +151,8 @@ float volts = 0;
 /*
  * Control variables
  */
-boolean twistPressed = false;
-boolean twistMoved = false;
+boolean encoderPressed = false;
+boolean encoderMoved = false;
 volatile boolean startPressed = false;
 volatile boolean stopPressed = false;
 
@@ -162,7 +167,7 @@ int storedSetPoint = 0;                    // the annealSetPoint value hanging o
 int annealSetPoint = ANNEAL_TIME_DEFAULT;  // plan to store this value as hundredths of seconds, multiplied by 100
 int delaySetPoint = DELAY_DEFAULT;         // same format - in this case, we start with a half second pause, just in case
 int caseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
-int twistDiff = 0;
+int encoderDiff = 0;
 
 volatile unsigned long startdebounceMicros = 0;
 volatile unsigned long stopdebounceMicros = 0;
@@ -287,12 +292,12 @@ void checkPowerSensors(boolean reset) {
   #endif 
 
   if (reset) {
-      amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
+      amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
       if ( amps < 0 ) amps = 0;
       volts = ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION );
   }
   else {
-    ampsCalc = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
+    ampsCalc = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
     if (ampsCalc < 0) ampsCalc = 0;
     amps = ( ( (1.0 - AMPS_SMOOTH_RATIO) * amps ) + (AMPS_SMOOTH_RATIO * ampsCalc) );
     volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
@@ -318,11 +323,12 @@ void checkThermistors(boolean reset) {
       Serial.print("DEBUG: THERM1_PIN read: "); Serial.println(temp);
       Therm1Avg = Therm1Avg + temp;
 
-      #ifdef _AP3_VARIANT_H_
-        temp = getInternalTemp();
-        Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
-        internalTemp = internalTemp + temp ;
-      #endif
+        #ifdef _AP3_VARIANT_H_
+          temp = getInternalTemp();
+          Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
+          internalTemp = internalTemp + temp ;
+        #endif
+      
       #else
       Therm1Avg = Therm1Avg + analogRead(THERM1_PIN);
       
@@ -335,7 +341,10 @@ void checkThermistors(boolean reset) {
   
     // Average over the three readings...
     Therm1Avg /= 3;
+
+    #ifdef _AP3_VARIANT_H_
     internalTemp /= 3;
+    #endif
     
     #ifdef DEBUG
     Serial.print("DEBUG: Therm1Avg before Steinhart ");
@@ -346,7 +355,10 @@ void checkThermistors(boolean reset) {
   
     Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
+
+    #ifdef _AP3_VARIANT_H_
     internalTempHigh = internalTemp;
+    #endif
     
   }
   else {
@@ -393,7 +405,11 @@ void setup() {
   // while (!Serial) ;
   #endif
 
+  #ifdef _AP3_VARIANT_H_
   analogReadResolution(14); //Set ADC resolution to the highest value possible 
+  #else
+  analogReadResolution(10);
+  #endif
 
   #if defined(_AP3_VARIANT_H_) && defined(DEBUG) // Artemis based platforms have 14-bit ADC
     Serial.println("DEBUG: ADC read resolution set to 14 bits");
@@ -405,7 +421,7 @@ void setup() {
   /*
    * XXXXXXX
    * 
-   * Look into error handling for Wire, twist, and lcd initialization
+   * Look into error handling for Wire, encoder, and lcd initialization
    * we need to error this out somehow, and make sure that we don't  
    * proceed if control or display is toast - and also make sure
    * that we can signal the user about it (LED flashes, if the screen
@@ -413,9 +429,7 @@ void setup() {
    * 
    */
 
-  // XXXXXX
-  // Wire.begin(); // twist.begin() actually fires up the bus, so we don't need this here long term
-  twist.begin(Wire);
+  Wire.begin();
   lcd.begin(Wire);
   Wire.setClock(400000);
   
@@ -481,15 +495,7 @@ void setup() {
   Serial.print(".");
   Serial.println(delaySetPoint % 100);
   #endif
-
-  // cruft cleanup - not doing this can cause the annealer to immediately fire up if a Click event was
-  // somehow left unhandled during our last endeavor
-  twist.clearInterrupts(); 
-  (void) twist.getDiff(true);
-
-  // initial encoder state
-  twist.setCount(0);
-  twist.setColor(GREEN);
+  
 
   // double check that we've been here for a second before we talk to the LCD
   // This is to work around what seems to be a startup timing issue, where 
@@ -515,8 +521,12 @@ void setup() {
   #ifdef DEBUG_VERBOSE
   float tempamps = 0;
   while (1) {
+    
+    #ifdef _AP3_VARIANT_H_
     temp = analogRead(ADC_INTERNAL_TEMP);
     Serial.print("DEBUG: ADC_INTERNAL_TEMP Read: "); Serial.println(temp);
+    #endif
+    
     tempamps = analogRead(CURRENT_PIN);
     Serial.print("DEBUG: CURRENT_PIN read "); Serial.print(tempamps);
     tempamps = ( ( ( tempamps / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
@@ -544,20 +554,18 @@ void loop() {
   
   // gather button statuses
   
-  // Twist click will act as either start or stop button, for now, depending on context. This will change later to 
-  // a state completely based on menu context. Click implies press and release!
-  
-  if ( twist.isClicked() ) {
-    twistPressed = true;
+  if ( encoder.isClicked() ) {
+    encoderPressed = true;
+    (void) encoder.isDoubleClicked(); // clear this flag in this context
     
     #ifdef DEBUG
-    Serial.println("DEBUG: Twist clicked");
+    Serial.println("DEBUG: Encoder clicked");
     #endif
   }
 
-  if ((startPressed || twistPressed) && (annealState == WAIT_BUTTON)) {
+  if ((startPressed || encoderPressed) && (annealState == WAIT_BUTTON)) {
     startPressed = true; // in case we didn't get here by interrupt
-    twistPressed = false;
+    encoderPressed = false;
     
    #ifdef DEBUG
     Serial.println("DEBUG: start button pressed");
@@ -570,13 +578,12 @@ void loop() {
   else if (startPressed) startPressed = false;
 
 
-  if ((stopPressed || twistPressed) && (annealState != WAIT_BUTTON)) {
+  if ((stopPressed || encoderPressed) && (annealState != WAIT_BUTTON)) {
     digitalWrite(INDUCTOR_PIN, LOW);
     digitalWrite(LED_BUILTIN, LOW);
     digitalWrite(SOLENOID_PIN, LOW);
     annealState = WAIT_BUTTON;
-    twist.setColor(GREEN);
-    twistPressed = false;
+    encoderPressed = false;
     
     #ifdef DEBUG
     Serial.println("DEBUG: stop button pressed - anneal cycle aborted");
@@ -591,37 +598,37 @@ void loop() {
 
   // check the encoder - note, only update this if we're not actively
   // annealing cases!
-  twistMoved = twist.isMoved();
-  if (twistMoved && annealState == WAIT_BUTTON) {
+  encoderMoved = encoder.isMoved();
+  if (encoderMoved && annealState == WAIT_BUTTON) {
     
     #ifdef DEBUG
       // heuristics to actually output the difference... sigh
-      twistDiff = twist.getDiff(true);
-      Serial.print("DEBUG: twist moved - diff is ");
-      Serial.println(twistDiff);
-      annealSetPoint += twistDiff;
+      encoderDiff = encoder.getDiff(true);
+      Serial.print("DEBUG: encoder moved - diff is ");
+      Serial.println(encoderDiff);
+      annealSetPoint += encoderDiff;
       Serial.print("DEBUG: new annealSetPoint = ");
       Serial.println(annealSetPoint);
     #else
-      annealSetPoint += twist.getDiff(true);
+      annealSetPoint += encoder.getDiff(true);
     #endif
 
-    int twistCount = twist.getCount();
-    if ((twistCount > 32000) || (twistCount < -32000)) {
+    int encoderCount = encoder.getCount();
+    if ((encoderCount > 32000) || (encoderCount < -32000)) {
       
       #ifdef DEBUG
-      Serial.print("DEBUG: Twist count resetting - current count ");
-      Serial.println(twistCount);
+      Serial.print("DEBUG: Encoder count resetting - current count ");
+      Serial.println(encoderCount);
       #endif
       
-      twist.setCount(0); // prevent over/underflow
+      encoder.setCount(0); // prevent over/underflow
     }
     
-    twistMoved = false;
+    encoderMoved = false;
   }
-  else if (twistMoved) {  // and we're somewhere else in the state machine
-    twistDiff = twist.getDiff(); // clear the difference
-    twistMoved = false;
+  else if (encoderMoved) {  // and we're somewhere else in the state machine
+    encoderDiff = encoder.getDiff(); // clear the difference
+    encoderMoved = false;
   }
 
   
@@ -673,7 +680,6 @@ void loop() {
       
       if (startPressed) {
         annealState = WAIT_CASE;
-        twist.setColor(RED);
         startPressed = false;
         updateLCDState();
         
@@ -774,7 +780,6 @@ void loop() {
         digitalWrite(INDUCTOR_PIN, LOW);
         digitalWrite(LED_BUILTIN, LOW);
         annealState = DROP_CASE;
-        twist.setColor(BLUE);
         Timer.restart();
         updateLCDState();
         LCDTimer.restart();
@@ -880,7 +885,6 @@ void loop() {
       }
       
       if (Timer.hasPassed(delaySetPoint * 10)) {
-        twist.setColor(RED);
         annealState = WAIT_CASE;
 
         #ifdef DEBUG_STATE
