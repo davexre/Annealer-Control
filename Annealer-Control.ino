@@ -9,31 +9,43 @@
  * 
  * This code is heavily informed by posts from ottsm there - specifically post 1050
  * 
+ * Requires:
+ *  - SparkFun SerLCD library
  * 
+ * 
+ * Options:
+ *  - SparkFun Apollo3 core 1.1.1 or above - includes an internal thermistor on the CPU, as well
+ *    as several other features that seem inviting.     
+ *    
+ *    
  * So, why the whole "#ifdef DEBUG" thing, rather than a subroutine to print out debug messages?
  * I just don't want the DEBUG code to compile in the final code, if we don't need to debug things.
  * Yeah, this way is messy to read - I'm trading that for a smaller executable, and a tighter
- * execution path for the final code. This is also why I didn't pull printf in to the project, too!
+ * execution path for the final code.
  * 
  * 
  * This code assumes a couple pieces of hardware:
- * - SparkFun RedBoard Artemis (though, it attempts to adjust for a normal Arduino where it can)
- * - SparkFun AVR 20x4 LCD, connected through I2C
- * - SparkFun Qwiic Twist encoder, connected through I2C
+ * - SparkFun AVR 20x4 LCD, connected through I2C using SerLCD (though it would be easily
+ *   converted to using the LiquidCrystal library with any I2C based display)
+ * - An encoder with a click button
  * 
  * 
  * TO DO list:
  * - handle anything commented with "XXXXXX"
- * - convert to using just the Twist encoder, and not start/stop buttons (maybe? buttons seem
- *   more reliable, at this point, and easier to do interrupts on). 
  * - set up IR optical detection on the case
  * - menu system of some kind
  * - saved settings for different brass (possibly allowing name edits) and ability to choose
  * - support for a casefeeder (second opto, and logic)
  * - consider moving annealer "power on" LED to control here, or add a "status" LED. This can
  *   be used for communication with the user when the annealer has a problem, too.
+ * - if we end up abandoning Apollo3 completely, remove any platform specific code
+ * - look at dual SerLCD / LiquidCrystal support
+ * 
  * 
  * Version History:
+ * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
+ *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
+ *         library (only ATmega CPUS?), cleanup architecture defines
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
@@ -42,16 +54,17 @@
  
 #include <Chrono.h>
 #include <EEPROM.h>
+#include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
-#include "SparkFun_Qwiic_Twist_Arduino_Library.h"
 #include <Wire.h>
 
 #include <ctype.h>  // presumably to get enumerations
 
 #include "Annealer-Control.h" // globals and constants live here!
+#include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
 
 
-#define VERSION   0.2
+#define VERSION   0.4
 
 /*
  * DEBUG - uncomment the #define to set us to DEBUG mode! Make sure you open a serial 
@@ -80,16 +93,7 @@
  * set one up for our future "Mayan" mode, if we get there, too.
  */
 
-enum AnnealState
-{
-  WAIT_BUTTON,
-  WAIT_CASE,
-  START_ANNEAL,
-  ANNEAL_TIMER,
-  DROP_CASE,
-  DROP_CASE_TIMER,
-  DELAY
-} annealState;
+enum AnnealState annealState;
 
 const char *annealStateDesc[] = {
   "  Press Start",
@@ -107,19 +111,15 @@ const char *annealStateDesc[] = {
  * DISPLAYS - initialize using SparkFun's SerLCD library
  */
 
-SerLCD lcd; // Initialize the library with default I2C address 0x72
-
-// these are GLOBAL - be careful!
-String output;
-int LCDquotient = 0;
-int LCDremainder = 0;
-int timerCurrent = 0;
+SerLCD lcd; // Initialize the LCD with default I2C address 0x72
 
 /*
- * ENCODER - initialize using SparkFun's Twist library
+ * ENCODER
  */
 
-TWIST twist;
+
+Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_BUTTON);
+
 
  /*
   * TIMERS - Chrono can set up a metronome (replaces old Metro library) to establish
@@ -137,10 +137,11 @@ Chrono Timer;
 float Therm1Avg = 0;
 float Therm1Temp = 0;
 float Therm1TempHigh = 0;  // track highest temp we saw
-String Therm1Pretty;
 
+#ifdef _AP3_VARIANT_H_
 float internalTemp = 0;
 float internalTempHigh = 0;  // track highest temp we saw
+#ifdef _AP3_VARIANT_H_
 
 float amps = 0;
 float volts = 0;
@@ -148,17 +149,23 @@ float volts = 0;
 /*
  * Control variables
  */
-boolean twistPressed = false;
-boolean twistMoved = false;
+boolean encoderPressed = false;
+boolean encoderMoved = false;
 volatile boolean startPressed = false;
 volatile boolean stopPressed = false;
 
 boolean startOnOpto = false; // we'll use this once we have an optical case sensor
 
-int annealSetPoint = 0;  // plan to store this value as hundredths of seconds, multiplied by 100
-int storedSetPoint = 0;  // the value hanging out in EEPROM - need this for comparison later
-int delaySetPoint = 50;  // same format - in this case, we start with a half second pause, just in case
-int twistDiff = 0;
+// XXXXXX - possible to use these guys as floats? new menu system will support printing floats
+// fine. We'd need to convert to milliseconds (so, (int) floatSetPoint * 1000 ) to compare to
+// the Chrono object during a timing cycle, and we'd need to convert the updateLCD handler for
+// the timer to do something similar (or to show the float correctly via dtostr 
+
+int storedSetPoint = 0;                    // the annealSetPoint value hanging out in EEPROM - need this for comparison later
+int annealSetPoint = ANNEAL_TIME_DEFAULT;  // plan to store this value as hundredths of seconds, multiplied by 100
+int delaySetPoint = DELAY_DEFAULT;         // same format - in this case, we start with a half second pause, just in case
+int caseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
+int encoderDiff = 0;
 
 volatile unsigned long startdebounceMicros = 0;
 volatile unsigned long stopdebounceMicros = 0;
@@ -223,11 +230,11 @@ void signalOurDeath() {
   digitalWrite(INDUCTOR_PIN, LOW);
   digitalWrite(SOLENOID_PIN, LOW);
 
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.println("DEBUG: signalOurDeath called.");
   Serial.println("DEBUG: It's dead, Jim.");
   Serial.println("DEBUG: I'm sorry, Dave. I'm afraid I couldn't do that.");
-#endif
+  #endif
 
   while(1) {
     digitalWrite(LED_BUILTIN, HIGH);
@@ -278,67 +285,78 @@ void checkPowerSensors(boolean reset) {
 
   int ampsCalc = 0;
 
-#ifdef DEBUG_VERBOSE
+  #ifdef DEBUG_VERBOSE
   Serial.print("DEBUG: checkPowerSensors: reset? "); Serial.println(reset);
-#endif 
+  #endif 
 
   if (reset) {
-      amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
+      amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
       if ( amps < 0 ) amps = 0;
       volts = ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION );
   }
   else {
-    ampsCalc = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
+    ampsCalc = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
     if (ampsCalc < 0) ampsCalc = 0;
     amps = ( ( (1.0 - AMPS_SMOOTH_RATIO) * amps ) + (AMPS_SMOOTH_RATIO * ampsCalc) );
     volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
   }
 
-#ifdef DEBUG_VERBOSE
+  #ifdef DEBUG_VERBOSE
   Serial.print("DEBUG: amps - ");
   Serial.println(amps);
   Serial.print("DEBUG: volts - ");
   Serial.println(volts);
-#endif
+  #endif
 }
-
-
-// XXXXXX - at the moment, this requires Nathan Seidle's fix for Issue 158 in the Arduino_Apollo3 core
-// Branch is here: https://github.com/sparkfun/Arduino_Apollo3/tree/adc_temperatureSensor
-// This should make it back to the Arduino_Apollo3 core in 1.0.31 or .32.
 
 void checkThermistors(boolean reset) {
 
   if (reset) {
     for (int i=0; i<3; i++) {
-#ifdef DEBUG
+      
+      #ifdef DEBUG
       temp = analogRead(THERM1_PIN);
       Serial.print("DEBUG: THERM1_PIN read: "); Serial.println(temp);
       Therm1Avg = Therm1Avg + temp;
-  
-      temp = getTemperature();
-      Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
-      internalTemp = internalTemp + temp ;
-#else
+
+        #ifdef _AP3_VARIANT_H_
+          temp = getInternalTemp();
+          Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
+          internalTemp = internalTemp + temp ;
+        #endif
+      
+      #else
       Therm1Avg = Therm1Avg + analogRead(THERM1_PIN);
-      internalTemp = internalTemp + getTemperature();
-#endif
+      
+        #ifdef _AP3_VARIANT_H_
+        internalTemp = internalTemp + getInternalTemp();
+        #endif
+      
+      #endif
+
     }
   
     // Average over the three readings...
     Therm1Avg /= 3;
+
+    #ifdef _AP3_VARIANT_H_
     internalTemp /= 3;
+    #endif
     
-  #ifdef DEBUG
+    #ifdef DEBUG
     Serial.print("DEBUG: Therm1Avg before Steinhart ");
     Serial.println(Therm1Avg);
     Serial.print("DEBUG: interalTemp before math: ");
     Serial.println(internalTemp);
-  #endif
+    #endif
+
   
     Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
+
+    #ifdef _AP3_VARIANT_H_
     internalTempHigh = internalTemp;
+    #endif
     
   }
   else {
@@ -349,263 +367,17 @@ void checkThermistors(boolean reset) {
       Therm1TempHigh = Therm1Temp;
     }
 
-    // this algorithm is incorrect, and will be updated when a fix is available from SparkFun
-    internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getTemperature()) );
-    if (internalTemp > internalTempHigh) {
-      internalTempHigh = internalTemp;
-    }
+
+    #ifdef _AP3_VARIANT_H_
+      internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getInternalTemp()) );
+      if (internalTemp > internalTempHigh) {
+        internalTempHigh = internalTemp;
+      }
+    #endif
     
   }
 }
-/*
- * updateLCD
- * 
- * Arguments
- * 
- * boolean full - write the whole screen?
- * 
- * Refresh the LCD - this code will get called in a couple places, so a subroutine makes sense.
- * This code is a little tedious - again, trying to leave printf out of the picture. Also, there
- * are preprocessor defines here (rather than above) - just keeping them local for ease of
- * reference and manipulation. 
- * 
- * Right now, this is just a basic display. Eventually, this should become a menu system of some
- * kind, rather than just a simple data display.
- * 
- * The LCD is 20x4
- * 
- * Try to do this as lightweight as possible. Here's the layout:
- * 
- * 01234567890123456789  <-- column numbers, not printed!!
- * Set 00.00 Time 00.00
- * Amp 00.00 Volt 00.00
- * Thrm 00.0 IntT  00.0
- * State: xxxxxxxxxxxxx
- */
-void updateLCD(boolean full) {
-  
-#ifdef DEBUG_LCD
-  Serial.println("DEBUG: updating the full LCD");
-#endif
 
-  String outputFull;
-  outputFull = "";
-
-  if (full) {
-    lcd.clear();
-    lcd.setCursor(LCD_SETPOINT_LABEL);
-    
-    outputFull.concat("Set ");
-    updateLCDSetPoint(false);
-    outputFull.concat(output);
-    outputFull.concat(" Time ");
-    updateLCDTimer(false);
-    outputFull.concat(output);
-    lcd.print(outputFull);
-#ifdef DEBUG_LCD
-    Serial.println(outputFull);
-#endif
-
-    outputFull = "";
-
-    // not sure why I need to do this, yet - the text "Amp "
-    // doesn't print out, otherwise...
-    lcd.setCursor(LCD_CURRENT_LABEL);
-    lcd.print("Amp ");
-    lcd.setCursor(LCD_CURRENT_LABEL);
-    outputFull.concat("Amp ");
-    updateLCDPowerDisplay("false");
-    outputFull.concat(output);
-#ifdef DEBUG_LCD
-    Serial.println(outputFull);
-#endif
-    lcd.print(outputFull);
-
-
-    outputFull = "";
-    lcd.setCursor(LCD_THERM1_LABEL);
-    outputFull.concat("Thrm ");
-    updateLCDTemps(false);
-    outputFull.concat(output);
-    lcd.print(outputFull);
-#ifdef DEBUG_LCD
-    Serial.println(outputFull);
-#endif
-    
-    lcd.setCursor(LCD_STATE_LABEL);
-    lcd.print("State:");
-
-    updateLCDState();
-  }
-  else {
-    updateLCDSetPoint(true);
-    updateLCDTimer(true);
-    updateLCDPowerDisplay(true);
-    updateLCDTemps(true);
-    updateLCDState();
-  }
-  
-#ifdef DEBUG_LCD
-  Serial.println("DEBUG: done updating LCD");
-#endif
-}
-
-// no boolean, here - we're likely always going to just do this
-void updateLCDState() {
-#ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print state");
-#endif
-  lcd.setCursor(LCD_STATE);
-  lcd.print(annealStateDesc[annealState]);
-
-
-}
-
-
-// set point is in hundredths of seconds! if it's less than 999, we need a space
-void updateLCDSetPoint(boolean sendIt) {
-  
-#ifdef DEBUG_LCD
-    Serial.println("DEBUG: LCD: print set point");
-#endif
-
-  output = "";
-  
-  LCDquotient = annealSetPoint / 100;
-  LCDremainder = annealSetPoint % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-  if (sendIt) {
-    lcd.setCursor(LCD_SETPOINT);
-    lcd.print(output);
-  }
-
-}
-
-// print most of the line at once! Save's us a cursor reposition and a print
-void updateLCDPowerDisplay(boolean sendIt) {
-#ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print amps and volts");
-#endif
-
-  output = "";
-
-  LCDremainder = (int) (amps * 100);
-  LCDquotient = LCDremainder / 100;
-  LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-  output.concat(" Volt ");
-
-  LCDremainder = (int) (volts * 100);
-  LCDquotient = LCDremainder / 100;
-  LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
-
-#ifdef DEBUG_LCD
-  Serial.print("DEBUG: updateLCDPowerDisplay output: "); Serial.println(output);
-#endif
-
-  if (sendIt) {
-    lcd.setCursor(LCD_CURRENT);
-    lcd.print(output);
-  }
-
-  
-}
-
-void updateLCDTemps(boolean sendIt) {
-#ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print temperatures");
-#endif
-
-  output = "";
-
-  LCDremainder = (int) (Therm1Temp * 10);
-  LCDquotient = LCDremainder / 10;
-  LCDremainder = LCDremainder % 10;
-  if (LCDquotient >= 100) {
-    output.concat(" ");
-    output.concat(LCDquotient);
-  }
-  else {
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    output.concat(LCDremainder); // should be less than 10
-  }
-  
-  output.concat(" IntT  "); 
-
-  LCDremainder = (int) (internalTemp * 10);
-  LCDquotient = LCDremainder / 10;
-  LCDremainder = LCDremainder % 10;
-
-  if (LCDquotient >= 100) {
-    output.concat(" ");
-    output.concat(LCDquotient);
-  }
-  else {
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    output.concat(LCDremainder); // should be less than 10
-  }
-
-  if (sendIt) {
-    lcd.setCursor(LCD_THERM1);
-    lcd.print(output);
-  }
-  
-}
-
-
-void updateLCDTimer(boolean sendIt) {
-  #ifdef DEBUG_LCD
-    Serial.println("DEBUG: LCD: print timer");
-  #endif
-  
-  output = "";
-
-  
-  // if we're running a timer, do the math to print the right value, otherwise, a default
-  if (annealState == START_ANNEAL || 
-      annealState == ANNEAL_TIMER ||   
-      annealState == DELAY ) {
-        
-    timerCurrent = Timer.elapsed();
-    LCDquotient = timerCurrent / 1000;
-    LCDremainder = timerCurrent % 1000 / 10;
-    if (LCDquotient < 10) output.concat(" ");
-    output.concat(LCDquotient);
-    output.concat(".");
-    if (LCDremainder < 10) output.concat("0");
-    output.concat(LCDremainder);
-  }
-  else {
-    // this is for all the wait states *AND* DROP_CASE, so we can show 0.00 at 
-    // timer start
-    output.concat(" 0.00");
-  }
-
-  if (sendIt) {
-    lcd.setCursor(LCD_TIMER);
-    lcd.print(output);
-  }
-  
-}
 
 /**************************************************************************************************
  * setup
@@ -627,24 +399,28 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(START_PIN), startPressedHandler, FALLING);
   attachInterrupt(digitalPinToInterrupt(STOP_PIN), stopPressedHandler, FALLING);
   
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.begin(115200);
   // while (!Serial) ;
-#endif
+  #endif
 
+  #ifdef _AP3_VARIANT_H_
   analogReadResolution(14); //Set ADC resolution to the highest value possible 
+  #else
+  analogReadResolution(10);
+  #endif
 
-#if defined(_AP3_VARIANT_H_) && defined(DEBUG) // Artemis based platforms have 14-bit ADC
-  Serial.println("DEBUG: ADC read resolution set to 14 bits");
-#else
-  Serial.println("DEBUG: ADC read resolution set to 10 bits");
-#endif
+  #if defined(_AP3_VARIANT_H_) && defined(DEBUG) // Artemis based platforms have 14-bit ADC
+    Serial.println("DEBUG: ADC read resolution set to 14 bits");
+  #else
+    Serial.println("DEBUG: ADC read resolution set to 10 bits");
+  #endif
 
 
   /*
    * XXXXXXX
    * 
-   * Look into error handling for Wire, twist, and lcd initialization
+   * Look into error handling for Wire, encoder, and lcd initialization
    * we need to error this out somehow, and make sure that we don't  
    * proceed if control or display is toast - and also make sure
    * that we can signal the user about it (LED flashes, if the screen
@@ -652,16 +428,9 @@ void setup() {
    * 
    */
 
-  // XXXXXX
-  // Wire.begin(); // twist.begin() actually fires up the bus, so we don't need this here long term
-  twist.begin(Wire);
+  Wire.begin();
   lcd.begin(Wire);
   Wire.setClock(400000);
-
-  // XXXXXX - related to internal temp sensor problem - keeping in the code for now
-  //    note: the vcc var is removed above! Need a new float for that. 
-  // determine the actual vcc for use in internal temp calculations
-  // vcc = (float) analogRead(ADC_INTERNAL_VCC_DIV3) * 6 / RESOLUTION_MAX;
   
   
   // Initial analog sensor baselines
@@ -675,40 +444,43 @@ void setup() {
   // double check that we can trust the EEPROM by looking for a previously
   // stored "failsafe" value at a given address. We're going to use 
   // storedSetPoint here so we don't have to initialize a different variable
-  EEPROM.get(EE_FAILSAFE_ADDR, storedSetPoint);
+  EEPROM.get(EE_FAILSAFE_ADDR, storedSetPoint); // use StoreSetPoint temporarily
   if (storedSetPoint == EE_FAILSAFE_VALUE) {
     
-#ifdef DEBUG
-    Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
-#endif
+    #ifdef DEBUG
+      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
+    #endif
 
     EEPROM.get(ANNEAL_ADDR, storedSetPoint);
     EEPROM.get(DELAY_ADDR, delaySetPoint);
+    EEPROM.get(CASEDROP_ADDR, caseDropSetPoint);
   }
   else { // don't trust the EEPROM!
     
-#ifdef DEBUG
-    Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
-#endif
+    #ifdef DEBUG
+      Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
+    #endif
 
     EEPROM.put(EE_FAILSAFE_ADDR, EE_FAILSAFE_VALUE);
-    EEPROM.put(ANNEAL_ADDR, ANNEAL_TIME_DEFAULT);
-    EEPROM.put(DELAY_ADDR, DELAY_DEFAULT);
-    annealSetPoint = ANNEAL_TIME_DEFAULT;
-    delaySetPoint = DELAY_DEFAULT;
+    EEPROM.put(ANNEAL_ADDR, annealSetPoint);
+    EEPROM.put(DELAY_ADDR, delaySetPoint);
+    EEPROM.put(CASEDROP_ADDR, caseDropSetPoint);
   }
     
   // and reset defaults if it looks like our defaults got wiped, but the
   // the EEPROM failsafe survived
   if (storedSetPoint == 0) {
     annealSetPoint = ANNEAL_TIME_DEFAULT;
+    EEPROM.put(ANNEAL_ADDR, annealSetPoint);
+    storedSetPoint = annealSetPoint;
   }
   else {
     annealSetPoint = storedSetPoint;
   }
   if (delaySetPoint == 0) delaySetPoint = DELAY_DEFAULT;
+  if (caseDropSetPoint == 0) caseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
 
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.print("DEBUG: EEPROM stored Anneal set point was: ");
   Serial.print(storedSetPoint / 100);
   Serial.print(".");
@@ -721,16 +493,8 @@ void setup() {
   Serial.print(delaySetPoint / 100);
   Serial.print(".");
   Serial.println(delaySetPoint % 100);
-#endif
-
-  // cruft cleanup - not doing this can cause the annealer to immediately fire up if a Click event was
-  // somehow left unhandled during our last endeavor
-  twist.clearInterrupts(); 
-  (void) twist.getDiff(true);
-
-  // initial encoder state
-  twist.setCount(0);
-  twist.setColor(GREEN);
+  #endif
+  
 
   // double check that we've been here for a second before we talk to the LCD
   // This is to work around what seems to be a startup timing issue, where 
@@ -746,18 +510,22 @@ void setup() {
   LCDTimer.restart();
 
 
-#ifdef DEBUG
+  #ifdef DEBUG
   Serial.println("DEBUG: END OF SETUP!");
-#endif
+  #endif
 
 // XXXXXX - cleanup the DEBUG_VERBOSE - some of this below is temporary code, and may
 // not be appropriate, long term
 
-#ifdef DEBUG_VERBOSE
+  #ifdef DEBUG_VERBOSE
   float tempamps = 0;
   while (1) {
+    
+    #ifdef _AP3_VARIANT_H_
     temp = analogRead(ADC_INTERNAL_TEMP);
     Serial.print("DEBUG: ADC_INTERNAL_TEMP Read: "); Serial.println(temp);
+    #endif
+    
     tempamps = analogRead(CURRENT_PIN);
     Serial.print("DEBUG: CURRENT_PIN read "); Serial.print(tempamps);
     tempamps = ( ( ( tempamps / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
@@ -765,7 +533,7 @@ void setup() {
     checkPowerSensors(false);
     delay(2000);
   }
-#endif
+  #endif
 
 }
 
@@ -775,9 +543,9 @@ void setup() {
  **************************************************************************************************/
 void loop() {
 
-#ifdef DEBUG_LOOPTIMING
+  #ifdef DEBUG_LOOPTIMING
   loopMillis = millis();
-#endif
+  #endif
 
   ////////////////////////////////////////////////////////////////
   // Housekeeping - https://www.youtube.com/watch?v=ERd5Faz8_-E  /
@@ -785,46 +553,43 @@ void loop() {
   
   // gather button statuses
   
-  // Twist click will act as either start or stop button, for now, depending on context. This will change later to 
-  // a state completely based on menu context. Click implies press and release!
-  
-  if ( twist.isClicked() ) {
-    twistPressed = true;
+  if ( encoder.isClicked() ) {
+    encoderPressed = true;
+    (void) encoder.isDoubleClicked(); // clear this flag in this context
     
-#ifdef DEBUG
-    Serial.println("DEBUG: Twist clicked");
-#endif
+    #ifdef DEBUG
+    Serial.println("DEBUG: Encoder clicked");
+    #endif
   }
 
-  if ((startPressed || twistPressed) && (annealState == WAIT_BUTTON)) {
+  if ((startPressed || encoderPressed) && (annealState == WAIT_BUTTON)) {
     startPressed = true; // in case we didn't get here by interrupt
-    twistPressed = false;
+    encoderPressed = false;
     
- #ifdef DEBUG
+   #ifdef DEBUG
     Serial.println("DEBUG: start button pressed");
- #endif
- #ifdef DEBUG_STATE
+   #endif
+   #ifdef DEBUG_STATE
     stateChange = true;
-#endif
+  #endif
 
   } 
   else if (startPressed) startPressed = false;
 
 
-  if ((stopPressed || twistPressed) && (annealState != WAIT_BUTTON)) {
+  if ((stopPressed || encoderPressed) && (annealState != WAIT_BUTTON)) {
     digitalWrite(INDUCTOR_PIN, LOW);
     digitalWrite(LED_BUILTIN, LOW);
     digitalWrite(SOLENOID_PIN, LOW);
     annealState = WAIT_BUTTON;
-    twist.setColor(GREEN);
-    twistPressed = false;
+    encoderPressed = false;
     
-#ifdef DEBUG
+    #ifdef DEBUG
     Serial.println("DEBUG: stop button pressed - anneal cycle aborted");
-#endif
-#ifdef DEBUG_STATE
+    #endif
+    #ifdef DEBUG_STATE
     stateChange = true;
-#endif
+    #endif
 
   }
   else if (stopPressed) stopPressed = false;
@@ -832,35 +597,43 @@ void loop() {
 
   // check the encoder - note, only update this if we're not actively
   // annealing cases!
-  twistMoved = twist.isMoved();
-  if (twistMoved && annealState == WAIT_BUTTON) {
+  encoderMoved = encoder.isMoved();
+  if (encoderMoved && annealState == WAIT_BUTTON) {
     
-#ifdef DEBUG
-    // heuristics to actually output the difference... sigh
-    twistDiff = twist.getDiff(true);
-    Serial.print("DEBUG: twist moved - diff is ");
-    Serial.println(twistDiff);
-    annealSetPoint += twistDiff;
-    Serial.print("DEBUG: new annealSetPoint = ");
-    Serial.println(annealSetPoint);
-#else
-    annealSetPoint += twist.getDiff(true);
-#endif
+    #ifdef DEBUG
+      // heuristics to actually output the difference... sigh
+      encoderDiff = encoder.getDiff(true);
+      Serial.print("DEBUG: encoder moved - diff is ");
+      Serial.println(encoderDiff);
+      annealSetPoint += encoderDiff;
+      Serial.print("DEBUG: new annealSetPoint = ");
+      Serial.println(annealSetPoint);
+    #else
+      annealSetPoint += encoder.getDiff(true);
+    #endif
 
-    int twistCount = twist.getCount();
-    if ((twistCount > 32000) || (twistCount < -32000)) {
-#ifdef DEBUG
-      Serial.print("DEBUG: Twist count resetting - current count ");
-      Serial.println(twistCount);
-#endif
-      twist.setCount(0); // prevent over/underflow
+    /*
+     * XXXXXX - Leave this section out, for now - not sure if it would interfere with
+     * ArduinoMenu implementation to come if we zero'ed the count or not!
+     
+    int encoderCount = encoder.getCount();
+    if ((encoderCount > 32000) || (encoderCount < -32000)) {
+      
+      #ifdef DEBUG
+      Serial.print("DEBUG: Encoder count resetting - current count ");
+      Serial.println(encoderCount);
+      #endif
+      
+      encoder.setCount(0); // prevent over/underflow
     }
+    */
     
-    twistMoved = false;
+    encoderMoved = false;
+    
   }
-  else if (twistMoved) {  // and we're somewhere else in the state machine
-    twistDiff = twist.getDiff(); // clear the difference
-    twistMoved = false;
+  else if (encoderMoved) {  // and we're somewhere else in the state machine
+    encoderDiff = encoder.getDiff(); // clear the difference
+    encoderMoved = false;
   }
 
   
@@ -873,12 +646,12 @@ void loop() {
     
     checkThermistors(false);
 
-#ifdef DEBUG_VERBOSE
+    #ifdef DEBUG_VERBOSE
     Serial.print("DEBUG: Inductor Board Thermistor =");
     Serial.println(Therm1Temp);
     Serial.print("DEBUG: Internal thermistor = ");
     Serial.println(internalTemp);
-#endif
+    #endif
     
   } // if (AnalogSensors...
 
@@ -900,9 +673,9 @@ void loop() {
     // Normal sensor handling, etc
     ////////////////////////////////
     case WAIT_BUTTON:
-#ifdef DEBUG_STATE
-      if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON"); stateChange = false; }
-#endif
+      #ifdef DEBUG_STATE
+        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON"); stateChange = false; }
+      #endif
       // try to avoid updating the LCD in the last 150ms of an anneal cycle to avoid overshooting
       // annealSetPoint is in hundredths of seconds, so we need to multiply by 10 to get millis
       if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
@@ -912,13 +685,12 @@ void loop() {
       
       if (startPressed) {
         annealState = WAIT_CASE;
-        twist.setColor(RED);
         startPressed = false;
         updateLCDState();
         
-#ifdef DEBUG_STATE
+        #ifdef DEBUG_STATE
         stateChange = true;
-#endif
+        #endif
       }
       break;
 
@@ -933,9 +705,9 @@ void loop() {
     // we wait.
     ////////////////////////////////
     case WAIT_CASE:
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_CASE"); stateChange = false; }
-#endif
+      #endif
 
       if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
         updateLCD(false);
@@ -955,9 +727,9 @@ void loop() {
         annealState = START_ANNEAL;
         updateLCDState();
         
-#ifdef DEBUG_STATE
+        #ifdef DEBUG_STATE
         stateChange = true;
-#endif
+        #endif
       }
       break;
 
@@ -974,9 +746,10 @@ void loop() {
     ////////////////////////////////
 
     case START_ANNEAL:
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter START_ANNEAL"); stateChange = false; }
-#endif
+      #endif
+      
       annealState = ANNEAL_TIMER;
       digitalWrite(INDUCTOR_PIN, HIGH);
       digitalWrite(LED_BUILTIN, HIGH);
@@ -984,9 +757,10 @@ void loop() {
       AnnealPowerSensors.restart();
       AnnealLCDTimer.restart();
 
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       stateChange = true;
-#endif
+      #endif
+      
       break;
 
 
@@ -1003,22 +777,21 @@ void loop() {
     ////////////////////////////////
 
     case ANNEAL_TIMER:
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter ANNEAL_TIMER"); stateChange = false; }
-#endif
+      #endif
 
       if (Timer.hasPassed(annealSetPoint * 10)) {  // if we're done...
         digitalWrite(INDUCTOR_PIN, LOW);
         digitalWrite(LED_BUILTIN, LOW);
         annealState = DROP_CASE;
-        twist.setColor(BLUE);
         Timer.restart();
         updateLCDState();
         LCDTimer.restart();
         
-#ifdef DEBUG_STATE
+        #ifdef DEBUG_STATE
         stateChange = true;
-#endif
+        #endif
       }    
       
       if (AnnealPowerSensors.hasPassed(ANNEAL_POWER_INTERVAL)) {
@@ -1048,16 +821,18 @@ void loop() {
     ////////////////////////////////
  
     case DROP_CASE: 
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE"); stateChange = false; }
-#endif
+      #endif
+      
       digitalWrite(SOLENOID_PIN, HIGH);
       annealState = DROP_CASE_TIMER;
       updateLCDTimer(true);
 
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       stateChange = true;
-#endif
+      #endif
+      
       break;
 
 
@@ -1067,12 +842,11 @@ void loop() {
     // Close the solenoid at the right time
     // Update the display on normal cycle
     ////////////////////////////////
-    
-    // XXXXXX - update the display correctly!
+
     case DROP_CASE_TIMER:
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER"); stateChange = false; }
-#endif
+      #endif
 
       // this timing isn't critical, so we'll just update normally, now
       if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
@@ -1080,16 +854,16 @@ void loop() {
         LCDTimer.restart();
       }
       
-      if (Timer.hasPassed(CASE_DROP_DELAY)) {
+      if (Timer.hasPassed(caseDropSetPoint)) {
         digitalWrite(SOLENOID_PIN, LOW);
         annealState = DELAY;
-        // XXXXXX Timer = 0;
         Timer.restart();
         updateLCDState();
 
-#ifdef DEBUG_STATE
+        #ifdef DEBUG_STATE
         stateChange = true;
-#endif
+        #endif
+        
         break;
       }
 
@@ -1106,23 +880,21 @@ void loop() {
     ////////////////////////////////
     
     case DELAY:
-#ifdef DEBUG_STATE
+      #ifdef DEBUG_STATE
       if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DELAY"); stateChange = false; }
-#endif
+      #endif
 
-      // XXXXXX - make sure we don't just need to update, period, rather than wait on the timer
       if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
         updateLCD(false);
         LCDTimer.restart();
       }
       
       if (Timer.hasPassed(delaySetPoint * 10)) {
-        twist.setColor(RED);
         annealState = WAIT_CASE;
 
-#ifdef DEBUG_STATE
+        #ifdef DEBUG_STATE
         stateChange = true;
-#endif
+        #endif
 
       }
       break;
@@ -1131,11 +903,11 @@ void loop() {
   } // switch(StepNumber)
 
 
-#ifdef DEBUG_LOOPTIMING
+  #ifdef DEBUG_LOOPTIMING
   if ((millis() - loopMillis) > 50) {
-  Serial.print("DEBUG: loop took ");
-  Serial.println(millis() - loopMillis);
+    Serial.print("DEBUG: loop took ");
+    Serial.println(millis() - loopMillis);
   }
-#endif
+  #endif
   
 } // loop()
