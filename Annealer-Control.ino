@@ -54,6 +54,7 @@
  
 #include <Chrono.h>
 #include <EEPROM.h>
+#include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
 
@@ -61,7 +62,6 @@
 
 #include "Annealer-Control.h" // globals and constants live here!
 #include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
-#include "./Encoder.h"
 
 
 #define VERSION   0.4
@@ -117,7 +117,7 @@ SerLCD lcd; // Initialize the LCD with default I2C address 0x72
  * ENCODER
  */
 
- Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_BUTTON);
+Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_BUTTON);
 
  /*
   * TIMERS - Chrono can set up a metronome (replaces old Metro library) to establish
