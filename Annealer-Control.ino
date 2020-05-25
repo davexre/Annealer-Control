@@ -609,6 +609,10 @@ void loop() {
       annealSetPoint += encoder.getDiff(true);
     #endif
 
+    /*
+     * XXXXXX - Leave this section out, for now - not sure if it would interfere with
+     * ArduinoMenu implementation to come if we zero'ed the count or not!
+     
     int encoderCount = encoder.getCount();
     if ((encoderCount > 32000) || (encoderCount < -32000)) {
       
@@ -619,8 +623,10 @@ void loop() {
       
       encoder.setCount(0); // prevent over/underflow
     }
+    */
     
     encoderMoved = false;
+    
   }
   else if (encoderMoved) {  // and we're somewhere else in the state machine
     encoderDiff = encoder.getDiff(); // clear the difference
