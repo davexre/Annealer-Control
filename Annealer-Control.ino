@@ -141,7 +141,7 @@ float Therm1TempHigh = 0;  // track highest temp we saw
 #ifdef _AP3_VARIANT_H_
 float internalTemp = 0;
 float internalTempHigh = 0;  // track highest temp we saw
-#ifdef _AP3_VARIANT_H_
+#endif
 
 float amps = 0;
 float volts = 0;
