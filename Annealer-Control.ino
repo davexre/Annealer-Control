@@ -12,14 +12,10 @@
  * Requires:
  *  - SparkFun SerLCD library
  * 
+ * 
  * Options:
  *  - SparkFun Apollo3 core 1.1.1 or above - includes an internal thermistor on the CPU, as well
- *    as several other features that seem inviting. However, it seems to have issues with integrating
- *    anything that needs deep hardware level integration for timing or interrupts - so standard
- *    encoder libraries have issues, here. Also had trouble with SparkFun's Qwiic Twist (via I2C),
- *    so couldn't use that as a substitute. As of v0.4, development on Apollo3 has been 
- *    abandoned, maybe to continue at a later date if this situation improves and we can get
- *    an encoder running.
+ *    as several other features that seem inviting.     
  *    
  *    
  * So, why the whole "#ifdef DEBUG" thing, rather than a subroutine to print out debug messages?
@@ -49,7 +45,7 @@
  * Version History:
  * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
  *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
- *         library (only ATmega CPUS?), cleanup architecture defines, stop developing Apollo3
+ *         library (only ATmega CPUS?), cleanup architecture defines
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
