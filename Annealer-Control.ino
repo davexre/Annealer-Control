@@ -117,7 +117,9 @@ SerLCD lcd; // Initialize the LCD with default I2C address 0x72
  * ENCODER
  */
 
+
 Encoder encoder(ENCODER_A_PIN, ENCODER_B_PIN, ENCODER_BUTTON);
+
 
  /*
   * TIMERS - Chrono can set up a metronome (replaces old Metro library) to establish
@@ -307,8 +309,6 @@ void checkPowerSensors(boolean reset) {
   #endif
 }
 
-
-
 void checkThermistors(boolean reset) {
 
   if (reset) {
@@ -333,6 +333,7 @@ void checkThermistors(boolean reset) {
         #endif
       
       #endif
+
     }
   
     // Average over the three readings...
@@ -348,6 +349,7 @@ void checkThermistors(boolean reset) {
     Serial.print("DEBUG: interalTemp before math: ");
     Serial.println(internalTemp);
     #endif
+
   
     Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
@@ -364,6 +366,7 @@ void checkThermistors(boolean reset) {
     if (Therm1Temp > Therm1TempHigh) {
       Therm1TempHigh = Therm1Temp;
     }
+
 
     #ifdef _AP3_VARIANT_H_
       internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getInternalTemp()) );

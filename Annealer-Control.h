@@ -23,13 +23,16 @@
 #define  CURRENT_PIN     A1
 #define  VOLTAGE_PIN     A2
 #define  OPTO_PIN        A5
-#define  INDUCTOR_PIN    6
-#define  SOLENOID_PIN    7
-#define  START_PIN       8   // Start button - may be deprecated eventually
-#define  STOP_PIN        9   // Stop button  - may be deprecated eventually
+#define  INDUCTOR_PIN    4
+#define  SOLENOID_PIN    5
+#define  START_PIN       6   
+#define  STOP_PIN        7   
+#define  INDUCTOR_LED    8
+#define  SOLENOID_LED    9
 #define  ENCODER_A_PIN   10
 #define  ENCODER_B_PIN   11
 #define  ENCODER_BUTTON  12
+
 
 
 /*
