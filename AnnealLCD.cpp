@@ -1,6 +1,7 @@
 /**************************************************************************************************
  * 
- * Annealer Control Program - AnnealLCD.cpp
+ * AnnealLCD.cpp
+ * Annealer Control Program
  * Author: Dave Re
  * Inception: 05/18/2020
  * 
@@ -10,24 +11,14 @@
  * 
  * All of the externs below are in Annealer-Control.ino
  * 
- */
+ **************************************************************************************************/
 
  
 #include "Annealer-Control.h"
 #include "AnnealLCD.h"
+#include <avr/dtostrf.h>
 #include <Chrono.h>
 #include <SerLCD.h>
-
-extern SerLCD lcd;
-extern Chrono Timer;
-extern int annealSetPoint;
-extern float amps;
-extern float volts;
-extern float Therm1Temp;
-extern float internalTemp;
-
-extern enum AnnealState annealState;
-extern const char *annealStateDesc[];
 
 String output;
 int LCDquotient = 0;
@@ -146,16 +137,12 @@ void updateLCDSetPoint(boolean sendIt) {
   #ifdef DEBUG_LCD
   Serial.println("DEBUG: LCD: print set point");
   #endif
+  char c[6];
 
   output = "";
-  
-  LCDquotient = annealSetPoint / 100;
-  LCDremainder = annealSetPoint % 100;
-  if (LCDquotient < 10) output.concat(" ");
-  output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
-  output.concat(LCDremainder);
+
+  dtostrf(annealSetPoint, 5, 2, c);
+  output.concat(c);
 
   if (sendIt) {
     lcd.setCursor(LCD_SETPOINT);
