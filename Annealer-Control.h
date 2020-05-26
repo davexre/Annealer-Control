@@ -10,6 +10,7 @@
 
 #include <Chrono.h>
 #include <EEPROM.h>
+#include <menu.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
 
@@ -70,10 +71,10 @@
 
 // EEPROM addresses - int is 2 bytes, so make sure these are even numbers!
 #define ANNEAL_ADDR   0
-#define DELAY_ADDR    2
-#define CASEDROP_ADDR 4
-#define EE_FAILSAFE_ADDR  100
-#define EE_FAILSAFE_VALUE 43  // bump in v0.4
+#define DELAY_ADDR    4
+#define CASEDROP_ADDR 8
+#define EE_FAILSAFE_ADDR  16
+#define EE_FAILSAFE_VALUE 45  // bump in v0.5
 
 // Control constants
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
@@ -117,7 +118,39 @@ enum AnnealState
   DELAY
 };
 
-extern AnnealState annealState;
+enum MenuState
+{
+  MAIN_MENU,
+  ANNEALING,
+  MAYAN
+};
 
+
+extern AnnealState annealState;
+extern MenuState menuState;
+
+extern const char *annealStateDesc[];
+
+extern float amps;
+extern float volts;
+extern float Therm1Avg;
+extern float Therm1Temp;
+extern float Therm1TempHigh;  // track highest temp we saw
+
+#ifdef _AP3_VARIANT_H_
+extern float internalTemp;
+extern float internalTempHigh;  // track highest temp we saw
+#endif
+
+extern SerLCD lcd;
+extern Chrono Timer;
+
+extern float annealSetPoint;
+extern float delaySetPoint;
+extern float caseDropSetPoint;
+
+extern boolean showedAnnealingScreen;
+
+extern Menu::navRoot nav;
 
 #endif // _ANNEALER_CONTROL_H
