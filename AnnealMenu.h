@@ -52,8 +52,7 @@ MENU(annealerSettingsMenu, "Annealer Settings", doNothing, anyEvent, noStyle,
    
 MENU(mainMenu,"Main Menu",doNothing,noEvent,wrapStyle,
   OP("Anneal", enterAnneal, enterEvent),
-  SUBMENU(annealerSettingsMenu), 
-  EXIT("<Back")
+  SUBMENU(annealerSettingsMenu)
 );
 
 MENU_OUTPUTS(out,MAX_DEPTH

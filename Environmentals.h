@@ -105,23 +105,12 @@ void checkThermistors(boolean reset) {
   
     // Average over the three readings...
     Therm1Avg /= 3;
-
-    #ifdef _AP3_VARIANT_H_
-    internalTemp /= 3;
-    #endif
-    
-    #ifdef DEBUG
-    Serial.print("DEBUG: Therm1Avg before Steinhart ");
-    Serial.println(Therm1Avg);
-    Serial.print("DEBUG: interalTemp before math: ");
-    Serial.println(internalTemp);
-    #endif
-
-  
     Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
 
     #ifdef _AP3_VARIANT_H_
+    internalTemp /= 3;
+    internalTemp = internalTemp * 1.8 + 32; // convert to F
     internalTempHigh = internalTemp;
     #endif
     
@@ -136,7 +125,7 @@ void checkThermistors(boolean reset) {
 
 
     #ifdef _AP3_VARIANT_H_
-      internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getInternalTemp()) );
+      internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * (getInternalTemp() * 1.8 + 32)) );
       if (internalTemp > internalTempHigh) {
         internalTempHigh = internalTemp;
       }

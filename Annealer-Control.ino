@@ -160,12 +160,9 @@ volatile boolean stopPressed = false;
 
 boolean startOnOpto = false; // we'll use this once we have an optical case sensor
 
-// XXXXXX - possible to use these guys as floats? new menu system will support printing floats
-// fine. We'd need to convert to milliseconds (so, (int) floatSetPoint * 1000 ) to compare to
-// the Chrono object during a timing cycle, and we'd need to convert the updateLCD handler for
-// the timer to do something similar (or to show the float correctly via dtostr 
-
-int storedSetPoint = 0;                    // the annealSetPoint value hanging out in EEPROM - need this for comparison later
+int storedSetPoint = 0;       // the annealSetPoint value hanging out in EEPROM - need this for comparison later
+int storedDelaySetPoint = 0;
+int storedCaseDropSetPoint = 0;
 float annealSetPoint = (float) ANNEAL_TIME_DEFAULT / 100;  // plan to store this value as hundredths of seconds, multiplied by 100
 float delaySetPoint = (float) DELAY_DEFAULT / 100;         // same format - in this case, we start with a half second pause, just in case
 float caseDropSetPoint = (float) CASE_DROP_DELAY_DEFAULT / 100;
@@ -320,60 +317,68 @@ void setup() {
   // double check that we can trust the EEPROM by looking for a previously
   // stored "failsafe" value at a given address. We're going to use 
   // storedSetPoint here so we don't have to initialize a different variable
-
-  int i = 0;
  
-  EEPROM.get(EE_FAILSAFE_ADDR, i); 
+  EEPROM.get(EE_FAILSAFE_ADDR, storedSetPoint); // borrow storedSetPoint for a moment
   
-  if (i == EE_FAILSAFE_VALUE) {
+  if (storedSetPoint == EE_FAILSAFE_VALUE) {
  
     #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(i); Serial.println(">");
+      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
     #endif
 
     EEPROM.get(ANNEAL_ADDR, storedSetPoint);
-    EEPROM.get(DELAY_ADDR, i);
-    delaySetPoint = i / 100.0;
-    EEPROM.get(CASEDROP_ADDR, i);
-    caseDropSetPoint = i / 100.0;
+    EEPROM.get(DELAY_ADDR, storedDelaySetPoint);
+    EEPROM.get(CASEDROP_ADDR, storedCaseDropSetPoint);
+
   }
   else { // don't trust the EEPROM!
     
     #ifdef DEBUG
       Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
     #endif
-    i = EE_FAILSAFE_VALUE;
-    EEPROM.put(EE_FAILSAFE_ADDR, i);
-    i = ANNEAL_TIME_DEFAULT;
-    EEPROM.put(ANNEAL_ADDR, i);
-    i = DELAY_DEFAULT;
-    Serial.print("DEBUG: writing to delay default: "); Serial.println(i);
-    EEPROM.put(DELAY_ADDR, DELAY_DEFAULT);
-    i = CASE_DROP_DELAY_DEFAULT;
-    EEPROM.put(CASEDROP_ADDR, i);
+    storedSetPoint = EE_FAILSAFE_VALUE; // here we go, borrowing again
+    EEPROM.put(EE_FAILSAFE_ADDR, storedSetPoint);
+    storedSetPoint = ANNEAL_TIME_DEFAULT;
+    EEPROM.put(ANNEAL_ADDR, storedSetPoint);
+    storedDelaySetPoint = DELAY_DEFAULT;
+    EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
+    storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
+    EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
   }
     
   // and reset defaults if it looks like our defaults got wiped, but the
   // the EEPROM failsafe survived
   if (storedSetPoint == 0) {
-    annealSetPoint = ANNEAL_TIME_DEFAULT / 100.0;
-    EEPROM.put(ANNEAL_ADDR, ANNEAL_TIME_DEFAULT);
-    storedSetPoint = (int) annealSetPoint * 100;
+    storedSetPoint = ANNEAL_TIME_DEFAULT;
+    annealSetPoint = storedSetPoint / 100.0;
+    EEPROM.put(ANNEAL_ADDR, storedSetPoint);
   }
   else {
     annealSetPoint = storedSetPoint / 100.0;
   }
-  if (delaySetPoint == 0.0) {
-    Serial.println("DEBUG: rewriting delaySetPoint");
-    delaySetPoint = DELAY_DEFAULT / 100.0;
+  
+  if (storedDelaySetPoint == 0) {
+    storedDelaySetPoint = DELAY_DEFAULT;
+    delaySetPoint = storedDelaySetPoint / 100.0;
+    EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
   }
-  if (caseDropSetPoint == 0.0) caseDropSetPoint = CASE_DROP_DELAY_DEFAULT / 100.0;
+  else {
+    delaySetPoint = storedDelaySetPoint / 100.0;
+  }
+  
+  if (storedCaseDropSetPoint == 0) {
+    storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
+    caseDropSetPoint = storedCaseDropSetPoint / 100.0;
+    EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
+  }
+  else {
+    caseDropSetPoint = storedCaseDropSetPoint / 100.0;
+  }
+  
 
   #ifdef DEBUG
   Serial.print("DEBUG: EEPROM stored Anneal set point was: ");
-  Serial.print(storedSetPoint / 100);
-  Serial.print(".");
-  Serial.println(storedSetPoint % 100);
+  Serial.println(annealSetPoint, 2);
   Serial.print("DEBUG: Starting Anneal set point: ");
   Serial.println(annealSetPoint, 2);
   Serial.print("DEBUG: EEPROM stored Delay set point: ");
@@ -446,10 +451,34 @@ void loop() {
 
   if (nav.sleepTask) {
 
-    // if this is our first cycle outside the menu, draw the whole screen
+    // if this is our first cycle outside the menu, draw the whole screen and save any settings
     if (!showedAnnealingScreen) {
       showedAnnealingScreen = true;
       updateLCD(true);
+
+      if (storedSetPoint != (int) annealSetPoint * 100) {
+        storedSetPoint = (int) annealSetPoint * 100;
+        #ifdef DEBUG
+          Serial.print("DEBUG: storedSetPoint != annealSetPoint. Setting to: "); Serial.println(storedSetPoint);
+        #endif
+        EEPROM.put(ANNEAL_ADDR, storedSetPoint);
+      }
+      
+      if (storedDelaySetPoint != (int) delaySetPoint * 100) {
+        storedDelaySetPoint = (int) delaySetPoint * 100;
+        #ifdef DEBUG
+          Serial.print("DEBUG: storedDelaySetPoint != delaySetPoint. Setting to: "); Serial.println(storedDelaySetPoint);
+        #endif
+        EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
+      }
+
+      if (storedCaseDropSetPoint != (int) caseDropSetPoint * 100) {
+        storedCaseDropSetPoint = (int) caseDropSetPoint * 100;
+        #ifdef DEBUG
+          Serial.print("DEBUG: storedCaseDropSetPoint != caseDropSetPoint. Setting to: "); Serial.println(storedCaseDropSetPoint);
+        #endif
+        EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
+      }
     }
 
     
@@ -626,13 +655,17 @@ void loop() {
           updateLCD(false);
           LCDTimer.restart();
         }
-        
-        if (storedSetPoint != (int) annealSetPoint / 100) {
-          storedSetPoint = (int) annealSetPoint / 100;
+
+        if (storedSetPoint != (int) annealSetPoint * 100) {
+          storedSetPoint = (int) annealSetPoint * 100;
+          #ifdef DEBUG
+            Serial.print("DEBUG: storedSetPoint != annealSetPoint. Setting to: "); Serial.println(storedSetPoint);
+          #endif
           EEPROM.put(ANNEAL_ADDR, storedSetPoint);
         }
+        
         if (startOnOpto) {
-          // nuttin' honey
+          // XXXXXX - this is where support for a proximity sensor or IR sensor goes
           updateLCDState();
           // do what we need to do
         }
