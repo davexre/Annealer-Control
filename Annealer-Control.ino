@@ -530,6 +530,7 @@ void loop() {
           LCDTimer.restart();
         }
 
+        // only save this if we use it
         eepromCheckAnnealSetPoint();
         
         if (startOnOpto) {
@@ -595,7 +596,7 @@ void loop() {
         if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter ANNEAL_TIMER"); stateChange = false; }
         #endif
   
-        if (Timer.hasPassed((int) annealSetPoint * 1000)) {  // if we're done...
+        if (Timer.hasPassed(floor((annealSetPoint * 1000.0) + 0.5))) {  // if we're done...
           digitalWrite(INDUCTOR_PIN, LOW);
           digitalWrite(LED_BUILTIN, LOW);
           annealState = DROP_CASE;
