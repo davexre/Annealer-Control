@@ -68,23 +68,6 @@
 
 #define VERSION   0.5
 
-/*
- * DEBUG - uncomment the #define to set us to DEBUG mode! Make sure you open a serial 
- * terminal at 9600 baud. Note that we don't expect to run with a Serial port regularly, 
- * so printing anything to Serial normally isn't going to be super useful.
- * 
- * If this isn't obvious, you need to recompile after commenting/uncommenting this statement!
- */
-
-#define DEBUG
-// #define DEBUG_LOOPTIMING
-// #define DEBUG_VERBOSE
-// #define DEBUG_STATE
-// #define DEBUG_LCD
-
-
-
-
 
 /******************************************************
  * GLOBALS
@@ -267,21 +250,23 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(START_PIN), startPressedHandler, FALLING);
   attachInterrupt(digitalPinToInterrupt(STOP_PIN), stopPressedHandler, FALLING);
   
-  #ifdef DEBUG
-  Serial.begin(115200);
-  // while (!Serial) ;
-  #endif
+ // #ifdef DEBUG
+    Serial.begin(115200);
+  //  while (!Serial) ;
+ // #endif
 
   #ifdef _AP3_VARIANT_H_
-  analogReadResolution(14); //Set ADC resolution to the highest value possible 
+    analogReadResolution(14); //Set ADC resolution to the highest value possible 
   #else
-  analogReadResolution(10);
+    analogReadResolution(10);
   #endif
 
-  #if defined(_AP3_VARIANT_H_) && defined(DEBUG) // Artemis based platforms have 14-bit ADC
-    Serial.println("DEBUG: ADC read resolution set to 14 bits");
-  #else
-    Serial.println("DEBUG: ADC read resolution set to 10 bits");
+  #ifdef DEBUG
+    #ifdef _AP3_VARIANT_H_
+      Serial.println("DEBUG: ADC read resolution set to 14 bits");
+    #else
+      Serial.println("DEBUG: ADC read resolution set to 10 bits");
+    #endif
   #endif
 
 
@@ -296,6 +281,10 @@ void setup() {
    * 
    */
 
+  #ifdef DEBUG_WITHOUTDEBUG
+    Serial.println("DEBUG: starting I2C and LCD");
+  #endif
+  
   Wire.begin();
   lcd.begin(Wire);
   Wire.setClock(400000);
@@ -358,7 +347,7 @@ void loop() {
   loopMillis = millis();
   #endif
 
-  if (nav.sleepTask) {
+  if (nav.sleepTask) {  // if we're not in the ArduinoMenu system
 
     // if this is our first cycle outside the menu, draw the whole screen and save any settings
     if (!showedAnnealingScreen) {
@@ -408,7 +397,9 @@ void loop() {
     } 
     else if (startPressed) startPressed = false;
   
-  
+
+    // only take action on the Stop Button if we're actively in the anneal 
+    // cycle. Treat the encoder button as a Stop Button if we're annealing, too
     if ((stopPressed || encoderPressed) && (annealState != WAIT_BUTTON)) {
       digitalWrite(INDUCTOR_PIN, LOW);
       digitalWrite(LED_BUILTIN, LOW);
@@ -508,8 +499,7 @@ void loop() {
         #ifdef DEBUG_STATE
           if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON"); stateChange = false; }
         #endif
-        // try to avoid updating the LCD in the last 150ms of an anneal cycle to avoid overshooting
-        // annealSetPoint is in hundredths of seconds, so we need to multiply by 10 to get millis
+        
         if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
           updateLCD(false);
           LCDTimer.restart();
@@ -630,9 +620,9 @@ void loop() {
         }
   
         // don't update the LCD if we're within 200 millseconds of ending the anneal cycle, so 
-        // we don't overrun while out to lunch. Remember that our times are stored in hundredths
-        // of seconds, so the math accounts for that
-        if ( (Timer.elapsed() < ((annealSetPoint + 20) * 10)) && AnnealLCDTimer.hasPassed(ANNEAL_LCD_TIMER_INTERVAL)) {
+        // we don't overrun while out to lunch. annealSetPoint is a float in seconds, and we
+        // need to convert it to milliseconds
+        if ( (Timer.elapsed() < (int)((annealSetPoint * 1000) - 200)) && AnnealLCDTimer.hasPassed(ANNEAL_LCD_TIMER_INTERVAL)) {
            updateLCDTimer(true);
            updateLCDPowerDisplay(true);
            AnnealLCDTimer.restart();

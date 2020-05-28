@@ -11,6 +11,10 @@
 
 #include "Annealer-Control.h"
 
+#ifdef DEBUG
+extern int temp;
+#endif
+
 /*
  * calcSteinhart
  * 

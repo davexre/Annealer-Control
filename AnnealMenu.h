@@ -27,7 +27,9 @@ using namespace Menu;
 
 extern SerLCD lcd;
 
-serialIn serial(Serial);
+#ifdef DEBUG
+  serialIn serial(Serial);
+#endif
 
 extern Encoder encoder;
 
@@ -35,8 +37,13 @@ RencoderStream encoderStream(&encoder);
 
 result enterAnneal(); // proto!
 
-menuIn* inputsList[]={&encoderStream,&serial};
-chainStream<2> in(inputsList);
+#ifdef DEBUG
+  menuIn* inputsList[]={&encoderStream,&serial};
+  chainStream<2> in(inputsList);
+#else
+  menuIn* inputsList[]={&encoderStream};
+  chainStream<1> in(inputsList);
+#endif
 
 result idle(menuOut &o, idleEvent e) {
   return(proceed);
