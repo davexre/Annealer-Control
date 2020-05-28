@@ -45,7 +45,7 @@
  *         timer ints to floats
  * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
  *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
- *         library (only ATmega CPUS?), cleanup architecture defines
+ *         library, cleanup architecture defines
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
@@ -53,7 +53,6 @@
  **************************************************************************************************/
  
 #include <Chrono.h>
-#include <EEPROM.h>
 #include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
@@ -62,6 +61,7 @@
 
 #include "Annealer-Control.h" // globals and constants live here!
 #include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
+#include "AnnealEEPROM.h"
 #include "AnnealMenu.h"
 #include "Environmentals.h"
 
@@ -160,9 +160,6 @@ volatile boolean stopPressed = false;
 
 boolean startOnOpto = false; // we'll use this once we have an optical case sensor
 
-int storedSetPoint = 0;       // the annealSetPoint value hanging out in EEPROM - need this for comparison later
-int storedDelaySetPoint = 0;
-int storedCaseDropSetPoint = 0;
 float annealSetPoint = (float) ANNEAL_TIME_DEFAULT / 100;  // plan to store this value as hundredths of seconds, multiplied by 100
 float delaySetPoint = (float) DELAY_DEFAULT / 100;         // same format - in this case, we start with a half second pause, just in case
 float caseDropSetPoint = (float) CASE_DROP_DELAY_DEFAULT / 100;
@@ -304,8 +301,8 @@ void setup() {
   Wire.setClock(400000);
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
- nav.idleTask=idle;
- nav.showTitle=false;
+  nav.idleTask=idle;
+  nav.showTitle=false;
   
     
   // Initial analog sensor baselines
@@ -313,79 +310,9 @@ void setup() {
 
   // initialize amps and volts for the display
   checkPowerSensors(true);
-  
-  // double check that we can trust the EEPROM by looking for a previously
-  // stored "failsafe" value at a given address. We're going to use 
-  // storedSetPoint here so we don't have to initialize a different variable
- 
-  EEPROM.get(EE_FAILSAFE_ADDR, storedSetPoint); // borrow storedSetPoint for a moment
-  
-  if (storedSetPoint == EE_FAILSAFE_VALUE) {
- 
-    #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
-    #endif
 
-    EEPROM.get(ANNEAL_ADDR, storedSetPoint);
-    EEPROM.get(DELAY_ADDR, storedDelaySetPoint);
-    EEPROM.get(CASEDROP_ADDR, storedCaseDropSetPoint);
-
-  }
-  else { // don't trust the EEPROM!
-    
-    #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
-    #endif
-    storedSetPoint = EE_FAILSAFE_VALUE; // here we go, borrowing again
-    EEPROM.put(EE_FAILSAFE_ADDR, storedSetPoint);
-    storedSetPoint = ANNEAL_TIME_DEFAULT;
-    EEPROM.put(ANNEAL_ADDR, storedSetPoint);
-    storedDelaySetPoint = DELAY_DEFAULT;
-    EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
-    storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
-    EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
-  }
-    
-  // and reset defaults if it looks like our defaults got wiped, but the
-  // the EEPROM failsafe survived
-  if (storedSetPoint == 0) {
-    storedSetPoint = ANNEAL_TIME_DEFAULT;
-    annealSetPoint = storedSetPoint / 100.0;
-    EEPROM.put(ANNEAL_ADDR, storedSetPoint);
-  }
-  else {
-    annealSetPoint = storedSetPoint / 100.0;
-  }
-  
-  if (storedDelaySetPoint == 0) {
-    storedDelaySetPoint = DELAY_DEFAULT;
-    delaySetPoint = storedDelaySetPoint / 100.0;
-    EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
-  }
-  else {
-    delaySetPoint = storedDelaySetPoint / 100.0;
-  }
-  
-  if (storedCaseDropSetPoint == 0) {
-    storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
-    caseDropSetPoint = storedCaseDropSetPoint / 100.0;
-    EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
-  }
-  else {
-    caseDropSetPoint = storedCaseDropSetPoint / 100.0;
-  }
-  
-
-  #ifdef DEBUG
-  Serial.print("DEBUG: EEPROM stored Anneal set point was: ");
-  Serial.println(annealSetPoint, 2);
-  Serial.print("DEBUG: Starting Anneal set point: ");
-  Serial.println(annealSetPoint, 2);
-  Serial.print("DEBUG: EEPROM stored Delay set point: ");
-  Serial.println(delaySetPoint, 2);
-  Serial.print("DEBUG: EEPROM stored Case Drop set point: ");
-  Serial.println(caseDropSetPoint, 2);
-  #endif
+  // pull the intial settings from the EEPROM
+  eepromStartup();
   
 
   // double check that we've been here for a second before we talk to the LCD
@@ -398,6 +325,9 @@ void setup() {
   } // clear to make first output to the LCD, now
  
   lcd.clear();
+
+  // Show a banner, for now - might program this as a startup screen on the LCD later
+  //
   // 01234567890123456789
   //   CASE BURNER 5000
   // PREPARE FOR GLORY!!!
@@ -406,7 +336,7 @@ void setup() {
   lcd.print("CASE BURNER 5000");
   lcd.setCursor(0,2);
   lcd.print("PREPARE FOR GLORY!!!");
-  delay(1000);
+  delay(2000);
   
   lcd.clear();
   LCDTimer.restart();
@@ -414,27 +344,6 @@ void setup() {
 
   #ifdef DEBUG
   Serial.println("DEBUG: END OF SETUP!");
-  #endif
-
-// XXXXXX - cleanup the DEBUG_VERBOSE - some of this below is temporary code, and may
-// not be appropriate, long term
-
-  #ifdef DEBUG_VERBOSE
-  float tempamps = 0;
-  while (1) {
-    
-    #ifdef _AP3_VARIANT_H_
-    temp = analogRead(ADC_INTERNAL_TEMP);
-    Serial.print("DEBUG: ADC_INTERNAL_TEMP Read: "); Serial.println(temp);
-    #endif
-    
-    tempamps = analogRead(CURRENT_PIN);
-    Serial.print("DEBUG: CURRENT_PIN read "); Serial.print(tempamps);
-    tempamps = ( ( ( tempamps / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
-    Serial.print(" calculated amps "); Serial.println(tempamps);
-    checkPowerSensors(false);
-    delay(2000);
-  }
   #endif
 
 }
@@ -456,29 +365,10 @@ void loop() {
       showedAnnealingScreen = true;
       updateLCD(true);
 
-      if (storedSetPoint != (int) annealSetPoint * 100) {
-        storedSetPoint = (int) annealSetPoint * 100;
-        #ifdef DEBUG
-          Serial.print("DEBUG: storedSetPoint != annealSetPoint. Setting to: "); Serial.println(storedSetPoint);
-        #endif
-        EEPROM.put(ANNEAL_ADDR, storedSetPoint);
-      }
+      eepromCheckAnnealSetPoint();
+      eepromCheckDelaySetPoint();
+      eepromCheckCaseDropSetPoint();
       
-      if (storedDelaySetPoint != (int) delaySetPoint * 100) {
-        storedDelaySetPoint = (int) delaySetPoint * 100;
-        #ifdef DEBUG
-          Serial.print("DEBUG: storedDelaySetPoint != delaySetPoint. Setting to: "); Serial.println(storedDelaySetPoint);
-        #endif
-        EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
-      }
-
-      if (storedCaseDropSetPoint != (int) caseDropSetPoint * 100) {
-        storedCaseDropSetPoint = (int) caseDropSetPoint * 100;
-        #ifdef DEBUG
-          Serial.print("DEBUG: storedCaseDropSetPoint != caseDropSetPoint. Setting to: "); Serial.println(storedCaseDropSetPoint);
-        #endif
-        EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
-      }
     }
 
     
@@ -656,13 +546,7 @@ void loop() {
           LCDTimer.restart();
         }
 
-        if (storedSetPoint != (int) annealSetPoint * 100) {
-          storedSetPoint = (int) annealSetPoint * 100;
-          #ifdef DEBUG
-            Serial.print("DEBUG: storedSetPoint != annealSetPoint. Setting to: "); Serial.println(storedSetPoint);
-          #endif
-          EEPROM.put(ANNEAL_ADDR, storedSetPoint);
-        }
+        eepromCheckAnnealSetPoint();
         
         if (startOnOpto) {
           // XXXXXX - this is where support for a proximity sensor or IR sensor goes
