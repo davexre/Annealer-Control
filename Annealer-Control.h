@@ -27,8 +27,7 @@
  * unexpected behavior.
  */
 
-//#define DEBUG
-//#define DEBUG_WITHOUTDEBUG
+// #define DEBUG
 // #define DEBUG_LOOPTIMING
 // #define DEBUG_VERBOSE
 // #define DEBUG_STATE

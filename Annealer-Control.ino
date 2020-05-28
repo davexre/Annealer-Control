@@ -249,11 +249,11 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(START_PIN), startPressedHandler, FALLING);
   attachInterrupt(digitalPinToInterrupt(STOP_PIN), stopPressedHandler, FALLING);
-  
- // #ifdef DEBUG
-    Serial.begin(115200);
-  //  while (!Serial) ;
- // #endif
+
+  Serial.begin(115200); // something gets unhappy if we don't spin up Serial
+  #ifdef DEBUG
+    while (!Serial) ;
+  #endif
 
   #ifdef _AP3_VARIANT_H_
     analogReadResolution(14); //Set ADC resolution to the highest value possible 
@@ -281,7 +281,7 @@ void setup() {
    * 
    */
 
-  #ifdef DEBUG_WITHOUTDEBUG
+  #ifdef DEBUG
     Serial.println("DEBUG: starting I2C and LCD");
   #endif
   
