@@ -292,6 +292,7 @@ void setup() {
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
   nav.showTitle=false;
+  nav.inputBurst=10; // helps responsiveness to the encoder knob
   
     
   // Initial analog sensor baselines
@@ -617,14 +618,15 @@ void loop() {
         if (AnnealPowerSensors.hasPassed(ANNEAL_POWER_INTERVAL)) {
           checkPowerSensors(false);
           AnnealPowerSensors.restart();
+          updateLCDPowerDisplay(true);
         }
+
   
         // don't update the LCD if we're within 200 millseconds of ending the anneal cycle, so 
         // we don't overrun while out to lunch. annealSetPoint is a float in seconds, and we
         // need to convert it to milliseconds
         if ( (Timer.elapsed() < (int)((annealSetPoint * 1000) - 200)) && AnnealLCDTimer.hasPassed(ANNEAL_LCD_TIMER_INTERVAL)) {
            updateLCDTimer(true);
-           updateLCDPowerDisplay(true);
            AnnealLCDTimer.restart();
         }
   

@@ -101,8 +101,8 @@
 #define DELAY_DEFAULT             50      // hundredths of seconds - for the timer formats
 #define LCD_STARTUP_INTERVAL      1000    // milliseconds - let the screen fire up and come online before we hit it
 #define LCD_UPDATE_INTERVAL       500     // milliseconds
-#define ANNEAL_LCD_TIMER_INTERVAL 250     // milliseconds - interval to update LCD during active anneal
-#define ANNEAL_POWER_INTERVAL     100     // millseconds - interval to check power sensors during active anneal
+#define ANNEAL_LCD_TIMER_INTERVAL 100     // milliseconds - interval to update LCD timer during active anneal
+#define ANNEAL_POWER_INTERVAL     250     // millseconds  - interval to check and update power sensors during active anneal
 #define DEBOUNCE_MICROS           100000  // MICROseconds
 
 // LCD contstants

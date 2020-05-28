@@ -251,8 +251,7 @@ void updateLCDTimer(boolean sendIt) {
   
   // if we're running a timer, do the math to print the right value, otherwise, a default
   if (annealState == START_ANNEAL || 
-      annealState == ANNEAL_TIMER ||   
-      annealState == DELAY ) {
+      annealState == ANNEAL_TIMER ) {
         
     timerCurrent = Timer.elapsed();
     LCDquotient = timerCurrent / 1000;
