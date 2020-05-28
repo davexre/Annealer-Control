@@ -469,13 +469,6 @@ void loop() {
       if ( (annealState != START_ANNEAL) && (annealState != ANNEAL_TIMER ) ) checkPowerSensors(false);
       
       checkThermistors(false);
-  
-      #ifdef DEBUG_VERBOSE
-      Serial.print("DEBUG: Inductor Board Thermistor =");
-      Serial.println(Therm1Temp);
-      Serial.print("DEBUG: Internal thermistor = ");
-      Serial.println(internalTemp);
-      #endif
       
     } // if (AnalogSensors...
   

@@ -56,10 +56,6 @@ void checkPowerSensors(boolean reset) {
 
   int ampsCalc = 0;
 
-  #ifdef DEBUG_VERBOSE
-  Serial.print("DEBUG: checkPowerSensors: reset? "); Serial.println(reset);
-  #endif 
-
   if (reset) {
       amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
       if ( amps < 0 ) amps = 0;
@@ -72,12 +68,6 @@ void checkPowerSensors(boolean reset) {
     volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
   }
 
-  #ifdef DEBUG_VERBOSE
-  Serial.print("DEBUG: amps - ");
-  Serial.println(amps);
-  Serial.print("DEBUG: volts - ");
-  Serial.println(volts);
-  #endif
 }
 
 void checkThermistors(boolean reset) {
