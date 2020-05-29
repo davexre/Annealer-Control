@@ -11,6 +11,10 @@
 
 #include "Annealer-Control.h"
 
+#ifdef DEBUG
+extern int temp;
+#endif
+
 /*
  * calcSteinhart
  * 
@@ -52,10 +56,6 @@ void checkPowerSensors(boolean reset) {
 
   int ampsCalc = 0;
 
-  #ifdef DEBUG_VERBOSE
-  Serial.print("DEBUG: checkPowerSensors: reset? "); Serial.println(reset);
-  #endif 
-
   if (reset) {
       amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
       if ( amps < 0 ) amps = 0;
@@ -68,12 +68,6 @@ void checkPowerSensors(boolean reset) {
     volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
   }
 
-  #ifdef DEBUG_VERBOSE
-  Serial.print("DEBUG: amps - ");
-  Serial.println(amps);
-  Serial.print("DEBUG: volts - ");
-  Serial.println(volts);
-  #endif
 }
 
 void checkThermistors(boolean reset) {
@@ -105,23 +99,12 @@ void checkThermistors(boolean reset) {
   
     // Average over the three readings...
     Therm1Avg /= 3;
-
-    #ifdef _AP3_VARIANT_H_
-    internalTemp /= 3;
-    #endif
-    
-    #ifdef DEBUG
-    Serial.print("DEBUG: Therm1Avg before Steinhart ");
-    Serial.println(Therm1Avg);
-    Serial.print("DEBUG: interalTemp before math: ");
-    Serial.println(internalTemp);
-    #endif
-
-  
     Therm1Temp = calcSteinhart(Therm1Avg);    
     Therm1TempHigh = Therm1Temp;
 
     #ifdef _AP3_VARIANT_H_
+    internalTemp /= 3;
+    internalTemp = internalTemp * 1.8 + 32; // convert to F
     internalTempHigh = internalTemp;
     #endif
     
@@ -136,7 +119,7 @@ void checkThermistors(boolean reset) {
 
 
     #ifdef _AP3_VARIANT_H_
-      internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * getInternalTemp()) );
+      internalTemp = (((1.0 - INT_TEMP_SMOOTH_RATIO) * internalTemp) + (INT_TEMP_SMOOTH_RATIO * (getInternalTemp() * 1.8 + 32)) );
       if (internalTemp > internalTempHigh) {
         internalTempHigh = internalTemp;
       }

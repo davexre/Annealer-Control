@@ -45,7 +45,7 @@
  *         timer ints to floats
  * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
  *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
- *         library (only ATmega CPUS?), cleanup architecture defines
+ *         library, cleanup architecture defines
  * v 0.3 - fix for internal thermistor
  * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
  * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
@@ -53,7 +53,6 @@
  **************************************************************************************************/
  
 #include <Chrono.h>
-#include <EEPROM.h>
 #include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
@@ -62,28 +61,12 @@
 
 #include "Annealer-Control.h" // globals and constants live here!
 #include "AnnealLCD.h" // LCD functions for when we're not in the menu system are here
+#include "AnnealEEPROM.h"
 #include "AnnealMenu.h"
 #include "Environmentals.h"
 
 
 #define VERSION   0.5
-
-/*
- * DEBUG - uncomment the #define to set us to DEBUG mode! Make sure you open a serial 
- * terminal at 9600 baud. Note that we don't expect to run with a Serial port regularly, 
- * so printing anything to Serial normally isn't going to be super useful.
- * 
- * If this isn't obvious, you need to recompile after commenting/uncommenting this statement!
- */
-
-#define DEBUG
-// #define DEBUG_LOOPTIMING
-// #define DEBUG_VERBOSE
-// #define DEBUG_STATE
-// #define DEBUG_LCD
-
-
-
 
 
 /******************************************************
@@ -160,12 +143,6 @@ volatile boolean stopPressed = false;
 
 boolean startOnOpto = false; // we'll use this once we have an optical case sensor
 
-// XXXXXX - possible to use these guys as floats? new menu system will support printing floats
-// fine. We'd need to convert to milliseconds (so, (int) floatSetPoint * 1000 ) to compare to
-// the Chrono object during a timing cycle, and we'd need to convert the updateLCD handler for
-// the timer to do something similar (or to show the float correctly via dtostr 
-
-int storedSetPoint = 0;                    // the annealSetPoint value hanging out in EEPROM - need this for comparison later
 float annealSetPoint = (float) ANNEAL_TIME_DEFAULT / 100;  // plan to store this value as hundredths of seconds, multiplied by 100
 float delaySetPoint = (float) DELAY_DEFAULT / 100;         // same format - in this case, we start with a half second pause, just in case
 float caseDropSetPoint = (float) CASE_DROP_DELAY_DEFAULT / 100;
@@ -272,22 +249,24 @@ void setup() {
 
   attachInterrupt(digitalPinToInterrupt(START_PIN), startPressedHandler, FALLING);
   attachInterrupt(digitalPinToInterrupt(STOP_PIN), stopPressedHandler, FALLING);
-  
+
+  Serial.begin(115200); // something gets unhappy if we don't spin up Serial
   #ifdef DEBUG
-  Serial.begin(115200);
-  // while (!Serial) ;
+    while (!Serial) ;
   #endif
 
   #ifdef _AP3_VARIANT_H_
-  analogReadResolution(14); //Set ADC resolution to the highest value possible 
+    analogReadResolution(14); //Set ADC resolution to the highest value possible 
   #else
-  analogReadResolution(10);
+    analogReadResolution(10);
   #endif
 
-  #if defined(_AP3_VARIANT_H_) && defined(DEBUG) // Artemis based platforms have 14-bit ADC
-    Serial.println("DEBUG: ADC read resolution set to 14 bits");
-  #else
-    Serial.println("DEBUG: ADC read resolution set to 10 bits");
+  #ifdef DEBUG
+    #ifdef _AP3_VARIANT_H_
+      Serial.println("DEBUG: ADC read resolution set to 14 bits");
+    #else
+      Serial.println("DEBUG: ADC read resolution set to 10 bits");
+    #endif
   #endif
 
 
@@ -302,13 +281,18 @@ void setup() {
    * 
    */
 
+  #ifdef DEBUG
+    Serial.println("DEBUG: starting I2C and LCD");
+  #endif
+  
   Wire.begin();
   lcd.begin(Wire);
   Wire.setClock(400000);
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
- nav.idleTask=idle;
- nav.showTitle=false;
+  nav.idleTask=idle;
+  nav.showTitle=false;
+  nav.inputBurst=10; // helps responsiveness to the encoder knob
   
     
   // Initial analog sensor baselines
@@ -316,71 +300,9 @@ void setup() {
 
   // initialize amps and volts for the display
   checkPowerSensors(true);
-  
-  // double check that we can trust the EEPROM by looking for a previously
-  // stored "failsafe" value at a given address. We're going to use 
-  // storedSetPoint here so we don't have to initialize a different variable
 
-  int i = 0;
- 
-  EEPROM.get(EE_FAILSAFE_ADDR, i); 
-  
-  if (i == EE_FAILSAFE_VALUE) {
- 
-    #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(i); Serial.println(">");
-    #endif
-
-    EEPROM.get(ANNEAL_ADDR, storedSetPoint);
-    EEPROM.get(DELAY_ADDR, i);
-    delaySetPoint = i / 100.0;
-    EEPROM.get(CASEDROP_ADDR, i);
-    caseDropSetPoint = i / 100.0;
-  }
-  else { // don't trust the EEPROM!
-    
-    #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
-    #endif
-    i = EE_FAILSAFE_VALUE;
-    EEPROM.put(EE_FAILSAFE_ADDR, i);
-    i = ANNEAL_TIME_DEFAULT;
-    EEPROM.put(ANNEAL_ADDR, i);
-    i = DELAY_DEFAULT;
-    Serial.print("DEBUG: writing to delay default: "); Serial.println(i);
-    EEPROM.put(DELAY_ADDR, DELAY_DEFAULT);
-    i = CASE_DROP_DELAY_DEFAULT;
-    EEPROM.put(CASEDROP_ADDR, i);
-  }
-    
-  // and reset defaults if it looks like our defaults got wiped, but the
-  // the EEPROM failsafe survived
-  if (storedSetPoint == 0) {
-    annealSetPoint = ANNEAL_TIME_DEFAULT / 100.0;
-    EEPROM.put(ANNEAL_ADDR, ANNEAL_TIME_DEFAULT);
-    storedSetPoint = (int) annealSetPoint * 100;
-  }
-  else {
-    annealSetPoint = storedSetPoint / 100.0;
-  }
-  if (delaySetPoint == 0.0) {
-    Serial.println("DEBUG: rewriting delaySetPoint");
-    delaySetPoint = DELAY_DEFAULT / 100.0;
-  }
-  if (caseDropSetPoint == 0.0) caseDropSetPoint = CASE_DROP_DELAY_DEFAULT / 100.0;
-
-  #ifdef DEBUG
-  Serial.print("DEBUG: EEPROM stored Anneal set point was: ");
-  Serial.print(storedSetPoint / 100);
-  Serial.print(".");
-  Serial.println(storedSetPoint % 100);
-  Serial.print("DEBUG: Starting Anneal set point: ");
-  Serial.println(annealSetPoint, 2);
-  Serial.print("DEBUG: EEPROM stored Delay set point: ");
-  Serial.println(delaySetPoint, 2);
-  Serial.print("DEBUG: EEPROM stored Case Drop set point: ");
-  Serial.println(caseDropSetPoint, 2);
-  #endif
+  // pull the intial settings from the EEPROM
+  eepromStartup();
   
 
   // double check that we've been here for a second before we talk to the LCD
@@ -393,6 +315,9 @@ void setup() {
   } // clear to make first output to the LCD, now
  
   lcd.clear();
+
+  // Show a banner, for now - might program this as a startup screen on the LCD later
+  //
   // 01234567890123456789
   //   CASE BURNER 5000
   // PREPARE FOR GLORY!!!
@@ -401,7 +326,7 @@ void setup() {
   lcd.print("CASE BURNER 5000");
   lcd.setCursor(0,2);
   lcd.print("PREPARE FOR GLORY!!!");
-  delay(1000);
+  delay(2000);
   
   lcd.clear();
   LCDTimer.restart();
@@ -409,27 +334,6 @@ void setup() {
 
   #ifdef DEBUG
   Serial.println("DEBUG: END OF SETUP!");
-  #endif
-
-// XXXXXX - cleanup the DEBUG_VERBOSE - some of this below is temporary code, and may
-// not be appropriate, long term
-
-  #ifdef DEBUG_VERBOSE
-  float tempamps = 0;
-  while (1) {
-    
-    #ifdef _AP3_VARIANT_H_
-    temp = analogRead(ADC_INTERNAL_TEMP);
-    Serial.print("DEBUG: ADC_INTERNAL_TEMP Read: "); Serial.println(temp);
-    #endif
-    
-    tempamps = analogRead(CURRENT_PIN);
-    Serial.print("DEBUG: CURRENT_PIN read "); Serial.print(tempamps);
-    tempamps = ( ( ( tempamps / RESOLUTION_MAX * 2.0 ) - 1.0) / 100 );
-    Serial.print(" calculated amps "); Serial.println(tempamps);
-    checkPowerSensors(false);
-    delay(2000);
-  }
   #endif
 
 }
@@ -444,12 +348,17 @@ void loop() {
   loopMillis = millis();
   #endif
 
-  if (nav.sleepTask) {
+  if (nav.sleepTask) {  // if we're not in the ArduinoMenu system
 
-    // if this is our first cycle outside the menu, draw the whole screen
+    // if this is our first cycle outside the menu, draw the whole screen and save any settings
     if (!showedAnnealingScreen) {
       showedAnnealingScreen = true;
       updateLCD(true);
+
+      eepromCheckAnnealSetPoint();
+      eepromCheckDelaySetPoint();
+      eepromCheckCaseDropSetPoint();
+      
     }
 
     
@@ -489,7 +398,9 @@ void loop() {
     } 
     else if (startPressed) startPressed = false;
   
-  
+
+    // only take action on the Stop Button if we're actively in the anneal 
+    // cycle. Treat the encoder button as a Stop Button if we're annealing, too
     if ((stopPressed || encoderPressed) && (annealState != WAIT_BUTTON)) {
       digitalWrite(INDUCTOR_PIN, LOW);
       digitalWrite(LED_BUILTIN, LOW);
@@ -558,13 +469,6 @@ void loop() {
       if ( (annealState != START_ANNEAL) && (annealState != ANNEAL_TIMER ) ) checkPowerSensors(false);
       
       checkThermistors(false);
-  
-      #ifdef DEBUG_VERBOSE
-      Serial.print("DEBUG: Inductor Board Thermistor =");
-      Serial.println(Therm1Temp);
-      Serial.print("DEBUG: Internal thermistor = ");
-      Serial.println(internalTemp);
-      #endif
       
     } // if (AnalogSensors...
   
@@ -589,8 +493,7 @@ void loop() {
         #ifdef DEBUG_STATE
           if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON"); stateChange = false; }
         #endif
-        // try to avoid updating the LCD in the last 150ms of an anneal cycle to avoid overshooting
-        // annealSetPoint is in hundredths of seconds, so we need to multiply by 10 to get millis
+        
         if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
           updateLCD(false);
           LCDTimer.restart();
@@ -626,13 +529,12 @@ void loop() {
           updateLCD(false);
           LCDTimer.restart();
         }
+
+        // only save this if we use it
+        eepromCheckAnnealSetPoint();
         
-        if (storedSetPoint != (int) annealSetPoint / 100) {
-          storedSetPoint = (int) annealSetPoint / 100;
-          EEPROM.put(ANNEAL_ADDR, storedSetPoint);
-        }
         if (startOnOpto) {
-          // nuttin' honey
+          // XXXXXX - this is where support for a proximity sensor or IR sensor goes
           updateLCDState();
           // do what we need to do
         }
@@ -694,7 +596,7 @@ void loop() {
         if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter ANNEAL_TIMER"); stateChange = false; }
         #endif
   
-        if (Timer.hasPassed((int) annealSetPoint * 1000)) {  // if we're done...
+        if (Timer.hasPassed(floor((annealSetPoint * 1000.0) + 0.5))) {  // if we're done...
           digitalWrite(INDUCTOR_PIN, LOW);
           digitalWrite(LED_BUILTIN, LOW);
           annealState = DROP_CASE;
@@ -710,14 +612,15 @@ void loop() {
         if (AnnealPowerSensors.hasPassed(ANNEAL_POWER_INTERVAL)) {
           checkPowerSensors(false);
           AnnealPowerSensors.restart();
+          updateLCDPowerDisplay(true);
         }
+
   
         // don't update the LCD if we're within 200 millseconds of ending the anneal cycle, so 
-        // we don't overrun while out to lunch. Remember that our times are stored in hundredths
-        // of seconds, so the math accounts for that
-        if ( (Timer.elapsed() < ((annealSetPoint + 20) * 10)) && AnnealLCDTimer.hasPassed(ANNEAL_LCD_TIMER_INTERVAL)) {
+        // we don't overrun while out to lunch. annealSetPoint is a float in seconds, and we
+        // need to convert it to milliseconds
+        if ( (Timer.elapsed() < (int)((annealSetPoint * 1000) - 200)) && AnnealLCDTimer.hasPassed(ANNEAL_LCD_TIMER_INTERVAL)) {
            updateLCDTimer(true);
-           updateLCDPowerDisplay(true);
            AnnealLCDTimer.restart();
         }
   
