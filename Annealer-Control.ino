@@ -30,17 +30,8 @@
  * - An encoder with a click button
  * 
  * 
- * TO DO list:
- * - handle anything commented with "XXXXXX"
- * - set up IR optical detection on the case
- * - saved settings for different brass (possibly allowing name edits) and ability to choose
- * - support for a casefeeder (second opto, and logic)
- * - consider moving annealer "power on" LED to control here, or add a "status" LED. This can
- *   be used for communication with the user when the annealer has a problem, too.
- * - look at supporting both SerLCD amd LiquidCrystal
- * 
- * 
  * Version History:
+ * v 0.6 - Moved "to-do" list to github
  * v 0.5 - Implement ArduinoMenu, move environmental functions to separate file, convert 
  *         timer ints to floats
  * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
@@ -66,7 +57,7 @@
 #include "Environmentals.h"
 
 
-#define VERSION   0.5
+#define VERSION   0.6
 
 
 /******************************************************
