@@ -33,24 +33,50 @@
 // #define DEBUG_LCD
 
 
+// Select the pin layout needed based on which annealer shield is in play. If none, 
+// set up the right pin layout for your installation.
 
+#define _PROTO_BOARD
+// #define _V3_BOARD
 
 /*
  *  PIN CONFIGURATION
  */
-#define  THERM1_PIN      A0
-#define  CURRENT_PIN     A1
-#define  VOLTAGE_PIN     A2
-#define  OPTO_PIN        A5
-#define  INDUCTOR_PIN    4
-#define  SOLENOID_PIN    5
-#define  START_PIN       6   
-#define  STOP_PIN        7   
-#define  INDUCTOR_LED    8
-#define  SOLENOID_LED    9
-#define  ENCODER_A_PIN   10
-#define  ENCODER_B_PIN   11
-#define  ENCODER_BUTTON  12
+#ifdef _PROTO_BOARD
+  #define  THERM1_PIN      A0
+  #define  CURRENT_PIN     A1
+  #define  VOLTAGE_PIN     A2
+  #define  OPTO_PIN        A5
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  START_PIN       6   
+  #define  STOP_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
+
+#ifdef _V3_BOARD
+  #define  VOLTAGE_PIN     A0
+  #define  CURRENT_PIN     A1
+  #define  THERM1_PIN      A2
+  #define  OPTO1_PIN       A3
+  #define  THERM2_PIN      A4
+  #define  OPTO2_PIN       A5
+  #define  AUX1_PIN        2
+  #define  AUX2_PIN        3
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  START_PIN       6   
+  #define  STOP_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
 
 
 

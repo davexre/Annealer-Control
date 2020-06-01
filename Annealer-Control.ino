@@ -29,18 +29,6 @@
  *   converted to using the LiquidCrystal library with any I2C based display)
  * - An encoder with a click button
  * 
- * 
- * Version History:
- * v 0.6 - Moved "to-do" list to github
- * v 0.5 - Implement ArduinoMenu, move environmental functions to separate file, convert 
- *         timer ints to floats
- * v 0.4 - Apollo3 1.1.1 core udpate, comment and DEBUG statement cleanup, moved LCD functions
- *         to separate files (AnnealLCD.cpp and .h), convert code to use a normal encoder
- *         library, cleanup architecture defines
- * v 0.3 - fix for internal thermistor
- * v 0.2 - refactor handling of LCD, ditched Bounce2, moved defines to header file
- * v 0.1 - initial stab at the code, just replicating the Sestos timer functionality, mostly
- * 
  **************************************************************************************************/
  
 #include <Chrono.h>
