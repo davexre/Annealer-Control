@@ -11,6 +11,7 @@
 #include <Chrono.h>
 #include <EEPROM.h>
 #include <menu.h>
+#include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
 
@@ -169,6 +170,7 @@ enum MenuState
   MAYAN
 };
 
+extern Encoder encoder;
 
 extern AnnealState annealState;
 extern MenuState menuState;
@@ -188,6 +190,10 @@ extern float internalTempHigh;  // track highest temp we saw
 
 extern SerLCD lcd;
 extern Chrono Timer;
+extern Chrono AnalogSensors; 
+extern Chrono AnnealPowerSensors;
+extern Chrono AnnealLCDTimer;
+extern Chrono LCDTimer;
 
 extern float annealSetPoint;
 extern float delaySetPoint;
@@ -195,6 +201,35 @@ extern float caseDropSetPoint;
 
 extern boolean showedAnnealingScreen;
 
+extern boolean startOnOpto;
+
+extern int encoderDiff;
+extern int storedSetPoint; 
+extern int storedDelaySetPoint;
+extern int storedCaseDropSetPoint;
+
+extern boolean encoderPressed;
+extern boolean encoderMoved;
+extern volatile boolean startPressed;
+extern volatile boolean stopPressed;
+
 extern Menu::navRoot nav;
+
+// function protos
+
+void annealStateMachine(void);
+float calcSteinhart(float);
+void checkPowerSensors(boolean);
+void checkThermistors(boolean);
+void updateLCD(boolean full);
+void updateLCDState(void);
+void updateLCDSetPoint(boolean sendIt);
+void updateLCDPowerDisplay(boolean sendIt);
+void updateLCDTemps(boolean sendIt);
+void updateLCDTimer(boolean sendIt);
+void eepromStartup(void); 
+void eepromCheckAnnealSetPoint(void);
+void eepromCheckDelaySetPoint(void);
+void eepromCheckCaseDropSetPoint (void);
 
 #endif // _ANNEALER_CONTROL_H
