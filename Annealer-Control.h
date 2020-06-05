@@ -120,11 +120,15 @@
 #define CASEDROP_ADDR 8
 #define EE_FAILSAFE_ADDR  16
 #define EE_FAILSAFE_VALUE 45  // bump in v0.5
+#define CASE_NAME_ARRAY_START_ADDR 20 // names will be 12 char + null, so this extends to addr 150
+#define CASE_STORED_ARRAY_START_ADDR 200 // this address keeps it out of the way, well past the names, extends to 240 (10 floats)
+#define NUM_CASES 10
 
 // Control constants
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
 #define ANNEAL_TIME_DEFAULT       10      // hundredths of seconds - for the timer formats
 #define DELAY_DEFAULT             50      // hundredths of seconds - for the timer formats
+#define CASE_NAME_DEFAULT         "unused      "
 #define LCD_STARTUP_INTERVAL      1000    // milliseconds - let the screen fire up and come online before we hit it
 #define LCD_UPDATE_INTERVAL       500     // milliseconds
 #define ANNEAL_LCD_TIMER_INTERVAL 100     // milliseconds - interval to update LCD timer during active anneal
@@ -214,6 +218,9 @@ extern volatile boolean startPressed;
 extern volatile boolean stopPressed;
 
 extern Menu::navRoot nav;
+
+extern char* storedCaseLabels[10];
+extern float storedCaseTimes[10];
 
 // function protos
 
