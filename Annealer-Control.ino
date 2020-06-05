@@ -49,11 +49,6 @@
  * GLOBALS
  ******************************************************/
 
-/*
- * STATE MACHINES - enum detailing the possible states for the annealing state machine. We may 
- * set one up for our future "Mayan" mode, if we get there, too.
- */
-
 enum AnnealState annealState;
 
 enum MenuState menuState;
@@ -140,7 +135,7 @@ int temp = 0;
 
 
 /******************************************************
- * FUNCTIONS 
+ * INTERRUPT HANDLERS 
  ******************************************************/
 
 /* 
@@ -232,7 +227,6 @@ void setup() {
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
-  //nav.showTitle=false;
   nav.inputBurst=10; // helps responsiveness to the encoder knob
 
   // set the display for high temps to be read-only
@@ -307,7 +301,7 @@ void loop() {
       
     }
 
-    // buzz through the state machine
+    // buzz through the state machine - it's in AnnealStateMachine.cpp
     annealStateMachine();
     
   } // if (nav.sleepTask())
