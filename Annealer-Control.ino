@@ -234,7 +234,12 @@ void setup() {
   nav.idleTask=idle;
   nav.showTitle=false;
   nav.inputBurst=10; // helps responsiveness to the encoder knob
-  
+
+  // set the display for high temps to be read-only
+  dataDisplayMenu[0].disable();
+  #ifdef _AP3_VARIANT_H_
+  dataDisplayMenu[1].disable();
+  #endif
     
   // Initial analog sensor baselines
   checkThermistors(true);

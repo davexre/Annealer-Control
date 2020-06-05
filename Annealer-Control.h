@@ -201,7 +201,7 @@ extern float caseDropSetPoint;
 
 extern boolean showedAnnealingScreen;
 
-extern boolean startOnOpto;
+extern boolean startOnOpto; // not currently used
 
 extern int encoderDiff;
 extern int storedSetPoint; 

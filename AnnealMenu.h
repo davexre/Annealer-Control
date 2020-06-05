@@ -56,10 +56,19 @@ MENU(annealerSettingsMenu, "Annealer Settings", doNothing, anyEvent, noStyle,
   FIELD(caseDropSetPoint, "Trapdoor   ", "sec", 0.5, 2.0, .10, 0.01, doNothing, noEvent, noStyle),
   EXIT("<< Back")
 );
+
+MENU(dataDisplayMenu, "Data Display", doNothing, anyEvent, noStyle,
+  FIELD(Therm1TempHigh, "T1 High", " F", 0.0, 200.0, 0.1, 0.001, doNothing, noEvent, noStyle),
+  #ifdef _AP3_VARIANT_H_
+  FIELD(internalTempHigh, "Int High", " F", 0.0, 200.0, 0.1, 0.001, doNothing, noEvent, noStyle),
+  #endif
+  EXIT("<< Back")
+);
    
 MENU(mainMenu,"Main Menu",doNothing,noEvent,wrapStyle,
   OP("Anneal", enterAnneal, enterEvent),
-  SUBMENU(annealerSettingsMenu)
+  SUBMENU(annealerSettingsMenu),
+  SUBMENU(dataDisplayMenu)
 );
 
 MENU_OUTPUTS(out,MAX_DEPTH

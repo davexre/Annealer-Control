@@ -190,11 +190,16 @@ void annealStateMachine() {
 
         // only save this if we use it
         eepromCheckAnnealSetPoint();
-        
+
+        //
+        // Note - this is where code around a proximity sensor will go. For now, all
+        // this will do is update the LCD if startOnOpto gets set to true for some
+        // reason
+        //
         if (startOnOpto) {
-          // XXXXXX - this is where support for a proximity sensor or IR sensor goes
+          
           updateLCDState();
-          // do what we need to do
+          
         }
         else { // if we're not messing w/ the opto sensor, just go to the next step
           annealState = START_ANNEAL;
