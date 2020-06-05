@@ -232,7 +232,7 @@ void setup() {
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
-  nav.showTitle=false;
+  //nav.showTitle=false;
   nav.inputBurst=10; // helps responsiveness to the encoder knob
 
   // set the display for high temps to be read-only

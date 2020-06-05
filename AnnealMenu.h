@@ -65,7 +65,7 @@ MENU(dataDisplayMenu, "Data Display", doNothing, anyEvent, noStyle,
   EXIT("<< Back")
 );
    
-MENU(mainMenu,"Main Menu",doNothing,noEvent,wrapStyle,
+MENU(mainMenu,"Case Burner 5000",doNothing,noEvent,wrapStyle,
   OP("Anneal", enterAnneal, enterEvent),
   SUBMENU(annealerSettingsMenu),
   SUBMENU(dataDisplayMenu)
