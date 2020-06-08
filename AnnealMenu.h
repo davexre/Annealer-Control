@@ -8,21 +8,6 @@
  * ArduinoMenu related functions and declarations. This is the main menu for the annealer.
  * 
  **************************************************************************************************/
-
-/*
- * Chat contents with Rui Azevedo to resolve nav problem
- * serial / or long encoder press will produce and escape, but that can be inconvenient, one can add this method to TargetMenu 
- * and make it exit whenever the first option is selected, it works but it is also not elegant because one would have to use a 
- * data record with proper name ("Back" or "Exit") to do the effect
-  void doNav(navNode& nav,navCmd cmd) {
-    if(nav.root->navFocus==this&&cmd.cmd==enterCmd&&!nav.sel)
-      nav.root->exit();//exit if first option selected... whatever that is
-    else UserMenu::doNav(nav,cmd);
-  }
-the solution will be to add a special print to the userMenu for the job, along with correspondent navigation handle (as was done on sd menu)
-problem here is how to pass that proper name, on sd menu [..] was used
- */
-
  
 #include <Wire.h>
 #include <SerLCD.h>
