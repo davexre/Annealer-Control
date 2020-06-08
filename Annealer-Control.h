@@ -155,6 +155,15 @@
 #define ANALOG_INTERVAL       1000
 #define LCDSTARTUP_INTERVAL   1000
 
+struct StoredCase {
+  char name[13] = "unused      ";
+  float time = ANNEAL_TIME_DEFAULT / 100.0;
+  StoredCase& operator=(StoredCase& o) {
+    strncpy(name,o.name,12);
+    time=o.time;
+    return o;
+  }
+};
 
 enum AnnealState
 {
@@ -219,8 +228,7 @@ extern volatile boolean stopPressed;
 
 extern Menu::navRoot nav;
 
-extern char* storedCaseLabels[10];
-extern float storedCaseTimes[10];
+extern StoredCase storedCases[10];
 
 // function protos
 
@@ -238,5 +246,6 @@ void eepromStartup(void);
 void eepromCheckAnnealSetPoint(void);
 void eepromCheckDelaySetPoint(void);
 void eepromCheckCaseDropSetPoint (void);
+void eepromStoreCase(int);
 
 #endif // _ANNEALER_CONTROL_H
