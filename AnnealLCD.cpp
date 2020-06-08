@@ -15,7 +15,6 @@
 
  
 #include "Annealer-Control.h"
-#include "AnnealLCD.h"
 #include <avr/dtostrf.h>
 #include <Chrono.h>
 #include <SerLCD.h>

@@ -11,6 +11,7 @@
 #include <Chrono.h>
 #include <EEPROM.h>
 #include <menu.h>
+#include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
 
@@ -33,24 +34,50 @@
 // #define DEBUG_LCD
 
 
+// Select the pin layout needed based on which annealer shield is in play. If none, 
+// set up the right pin layout for your installation.
 
+#define _PROTO_BOARD
+// #define _V3_BOARD
 
 /*
  *  PIN CONFIGURATION
  */
-#define  THERM1_PIN      A0
-#define  CURRENT_PIN     A1
-#define  VOLTAGE_PIN     A2
-#define  OPTO_PIN        A5
-#define  INDUCTOR_PIN    4
-#define  SOLENOID_PIN    5
-#define  START_PIN       6   
-#define  STOP_PIN        7   
-#define  INDUCTOR_LED    8
-#define  SOLENOID_LED    9
-#define  ENCODER_A_PIN   10
-#define  ENCODER_B_PIN   11
-#define  ENCODER_BUTTON  12
+#ifdef _PROTO_BOARD
+  #define  THERM1_PIN      A0
+  #define  CURRENT_PIN     A1
+  #define  VOLTAGE_PIN     A2
+  #define  OPTO_PIN        A5
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  START_PIN       6   
+  #define  STOP_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
+
+#ifdef _V3_BOARD
+  #define  VOLTAGE_PIN     A0
+  #define  CURRENT_PIN     A1
+  #define  THERM1_PIN      A2
+  #define  OPTO1_PIN       A3
+  #define  THERM2_PIN      A4
+  #define  OPTO2_PIN       A5
+  #define  AUX1_PIN        2
+  #define  AUX2_PIN        3
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  START_PIN       6   
+  #define  STOP_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
 
 
 
@@ -93,11 +120,15 @@
 #define CASEDROP_ADDR 8
 #define EE_FAILSAFE_ADDR  16
 #define EE_FAILSAFE_VALUE 45  // bump in v0.5
+#define CASE_NAME_ARRAY_START_ADDR 20 // names will be 12 char + null, so this extends to addr 150
+#define CASE_STORED_ARRAY_START_ADDR 200 // this address keeps it out of the way, well past the names, extends to 240 (10 floats)
+#define NUM_CASES 10
 
 // Control constants
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
 #define ANNEAL_TIME_DEFAULT       10      // hundredths of seconds - for the timer formats
 #define DELAY_DEFAULT             50      // hundredths of seconds - for the timer formats
+#define CASE_NAME_DEFAULT         "unused      "
 #define LCD_STARTUP_INTERVAL      1000    // milliseconds - let the screen fire up and come online before we hit it
 #define LCD_UPDATE_INTERVAL       500     // milliseconds
 #define ANNEAL_LCD_TIMER_INTERVAL 100     // milliseconds - interval to update LCD timer during active anneal
@@ -124,6 +155,15 @@
 #define ANALOG_INTERVAL       1000
 #define LCDSTARTUP_INTERVAL   1000
 
+struct StoredCase {
+  char name[13] = "unused      ";
+  float time = ANNEAL_TIME_DEFAULT / 100.0;
+  StoredCase& operator=(StoredCase& o) {
+    strncpy(name,o.name,12);
+    time=o.time;
+    return o;
+  }
+};
 
 enum AnnealState
 {
@@ -143,6 +183,7 @@ enum MenuState
   MAYAN
 };
 
+extern Encoder encoder;
 
 extern AnnealState annealState;
 extern MenuState menuState;
@@ -162,6 +203,10 @@ extern float internalTempHigh;  // track highest temp we saw
 
 extern SerLCD lcd;
 extern Chrono Timer;
+extern Chrono AnalogSensors; 
+extern Chrono AnnealPowerSensors;
+extern Chrono AnnealLCDTimer;
+extern Chrono LCDTimer;
 
 extern float annealSetPoint;
 extern float delaySetPoint;
@@ -169,6 +214,38 @@ extern float caseDropSetPoint;
 
 extern boolean showedAnnealingScreen;
 
+extern boolean startOnOpto; // not currently used
+
+extern int encoderDiff;
+extern int storedSetPoint; 
+extern int storedDelaySetPoint;
+extern int storedCaseDropSetPoint;
+
+extern boolean encoderPressed;
+extern boolean encoderMoved;
+extern volatile boolean startPressed;
+extern volatile boolean stopPressed;
+
 extern Menu::navRoot nav;
+
+extern StoredCase storedCases[10];
+
+// function protos
+
+void annealStateMachine(void);
+float calcSteinhart(float);
+void checkPowerSensors(boolean);
+void checkThermistors(boolean);
+void updateLCD(boolean full);
+void updateLCDState(void);
+void updateLCDSetPoint(boolean sendIt);
+void updateLCDPowerDisplay(boolean sendIt);
+void updateLCDTemps(boolean sendIt);
+void updateLCDTimer(boolean sendIt);
+void eepromStartup(void); 
+void eepromCheckAnnealSetPoint(void);
+void eepromCheckDelaySetPoint(void);
+void eepromCheckCaseDropSetPoint (void);
+void eepromStoreCase(int);
 
 #endif // _ANNEALER_CONTROL_H

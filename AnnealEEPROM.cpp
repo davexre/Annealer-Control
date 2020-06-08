@@ -17,6 +17,11 @@ int storedSetPoint = 0;       // the annealSetPoint value hanging out in EEPROM 
 int storedDelaySetPoint = 0;
 int storedCaseDropSetPoint = 0;
 
+const char* caseNameDefault = "unused      ";
+
+StoredCase storedCases[10];
+
+boolean eepromGood = false;
 
 void eepromStartup(void) {
   
@@ -36,6 +41,8 @@ void eepromStartup(void) {
     EEPROM.get(DELAY_ADDR, storedDelaySetPoint);
     EEPROM.get(CASEDROP_ADDR, storedCaseDropSetPoint);
 
+    eepromGood = true;
+
   }
   else { // don't trust the EEPROM!
     
@@ -50,6 +57,8 @@ void eepromStartup(void) {
     EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
     storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
     EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
+
+    eepromGood = false;
   }
     
   // and reset defaults if it looks like our defaults got wiped, but the
@@ -90,6 +99,18 @@ void eepromStartup(void) {
     Serial.print("DEBUG: EEPROM stored Case Drop set point: ");
     Serial.println(caseDropSetPoint, 2);
   #endif
+  
+  // Grab the stored case type names and anneal times
+  for (int i=0; i < NUM_CASES; i++) { 
+    if (eepromGood) {
+      EEPROM.get((CASE_NAME_ARRAY_START_ADDR + (i*15)), storedCases[i].name);
+      EEPROM.get((CASE_STORED_ARRAY_START_ADDR + (i * sizeof(float))), storedCases[i].time);
+    }
+    else {
+      EEPROM.put((CASE_NAME_ARRAY_START_ADDR + (i*15)), storedCases[i].name);
+      EEPROM.put((CASE_STORED_ARRAY_START_ADDR + (i * sizeof(float))), storedCases[i].time);
+    }
+  }
   
 }
 
@@ -141,7 +162,9 @@ void eepromCheckCaseDropSetPoint (void) {
   }
 }
 
-
-
+void eepromStoreCase(int index) {
+  EEPROM.put((CASE_NAME_ARRAY_START_ADDR + (index*15)), storedCases[index].name);
+  EEPROM.put((CASE_STORED_ARRAY_START_ADDR + (index * sizeof(float))), storedCases[index].time);
+}
 
   
