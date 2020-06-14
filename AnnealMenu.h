@@ -74,6 +74,11 @@ result saveCurrentTimeTarget(eventMask e, navNode& nav) {
   return(quit);
 }
 
+result saveOpto(eventMask e, navNode& nav) {
+  eepromStoreStartOnOpto();
+  return(proceed);
+}
+
 struct TargetMenu:UserMenu {
   using UserMenu::UserMenu;
 
@@ -85,6 +90,12 @@ struct TargetMenu:UserMenu {
 result idle(menuOut &o, idleEvent e) {
   return(proceed);
 }
+
+TOGGLE(startOnOpto, startOnOptoToggle,"Case Detect   ", doNothing, noEvent, wrapStyle,
+  VALUE(" True", true, saveOpto, updateEvent),
+  VALUE("False", false, saveOpto, updateEvent)
+);
+
 
 MENU(targetEdit, "Case Edit", doNothing, noEvent, wrapStyle,
   EDIT("Name", target.name, alphaNumMask, doNothing, noEvent, noStyle),
@@ -99,6 +110,7 @@ MENU(annealerSettingsMenu, "Annealer Settings", doNothing, anyEvent, noStyle,
   FIELD(annealSetPoint, "Anneal Time", "sec", 0.0, 20.0, .10, 0.01, doNothing, noEvent, noStyle),
   FIELD(delaySetPoint, "Delay Time ", "sec", 0.0, 20.0, .10, 0.01, doNothing, noEvent, noStyle),
   FIELD(caseDropSetPoint, "Trapdoor   ", "sec", 0.5, 2.0, .10, 0.01, doNothing, noEvent, noStyle),
+  SUBMENU(startOnOptoToggle),
   EXIT("<< Back")
 );
 

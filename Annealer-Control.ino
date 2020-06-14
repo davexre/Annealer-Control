@@ -42,7 +42,7 @@
 #include "AnnealMenu.h"
 
 
-#define VERSION   0.6
+#define VERSION   0.7
 
 
 /******************************************************
@@ -177,6 +177,7 @@ void setup() {
   pinMode(START_PIN, INPUT_PULLUP);
   pinMode(STOP_PIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(OPTO1_PIN, INPUT_PULLUP);
 
 
   // make sure inductor board power is off, and the trap door is closed
@@ -228,6 +229,7 @@ void setup() {
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
   nav.inputBurst=10; // helps responsiveness to the encoder knob
+  nav.useUpdateEvent=true;
 
   // set the display for high temps to be read-only
   dataDisplayMenu[0].disable();

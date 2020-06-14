@@ -188,17 +188,28 @@ void annealStateMachine() {
           LCDTimer.restart();
         }
 
-        // only save this if we use it
+        // only save the annealer set point if it's changed and we go to use it
         eepromCheckAnnealSetPoint();
 
-        //
-        // Note - this is where code around a proximity sensor will go. For now, all
-        // this will do is update the LCD if startOnOpto gets set to true for some
-        // reason
-        //
         if (startOnOpto) {
-          
-          updateLCDState();
+        
+          // check the sensor
+          int opto1State = 0;
+          opto1State = digitalRead(OPTO1_PIN);
+
+          #ifdef DEBUG
+            Serial.print("DEBUG: OPTO1_PIN state: "); Serial.println(opto1State);
+          #endif
+
+          if (opto1State == LOW) { // there's a case waiting
+            annealState = START_ANNEAL;
+            updateLCDState();
+            opto1State = 0;
+            
+            #ifdef DEBUG_STATE
+            stateChange = true;
+            #endif
+          }
           
         }
         else { // if we're not messing w/ the opto sensor, just go to the next step

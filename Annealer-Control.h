@@ -39,6 +39,7 @@
 
 #define _PROTO_BOARD
 // #define _V3_BOARD
+// #define _V4_BOARD
 
 /*
  *  PIN CONFIGURATION
@@ -47,7 +48,7 @@
   #define  THERM1_PIN      A0
   #define  CURRENT_PIN     A1
   #define  VOLTAGE_PIN     A2
-  #define  OPTO_PIN        A5
+  #define  OPTO1_PIN        A5
   #define  INDUCTOR_PIN    4
   #define  SOLENOID_PIN    5
   #define  START_PIN       6   
@@ -79,7 +80,25 @@
   #define  ENCODER_BUTTON  12
 #endif
 
-
+#ifdef _V4_BOARD
+  #define  VOLTAGE_PIN     A0
+  #define  CURRENT_PIN     A1
+  #define  THERM1_PIN      A2
+  #define  OPTO1_PIN       A3
+  #define  THERM2_PIN      A4
+  #define  OPTO2_PIN       A5
+  #define  START_PIN       2   
+  #define  STOP_PIN        3
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  AUX1_PIN        6
+  #define  AUX2_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
 
 /*
  * CONSTANTS
@@ -118,6 +137,7 @@
 #define ANNEAL_ADDR   0
 #define DELAY_ADDR    4
 #define CASEDROP_ADDR 8
+#define START_ON_OPTO_ADDR  12
 #define EE_FAILSAFE_ADDR  16
 #define EE_FAILSAFE_VALUE 45  // bump in v0.5
 #define CASE_NAME_ARRAY_START_ADDR 20 // names will be 12 char + null, so this extends to addr 150
@@ -247,5 +267,6 @@ void eepromCheckAnnealSetPoint(void);
 void eepromCheckDelaySetPoint(void);
 void eepromCheckCaseDropSetPoint (void);
 void eepromStoreCase(int);
+void eepromStoreStartOnOpto(void);
 
 #endif // _ANNEALER_CONTROL_H

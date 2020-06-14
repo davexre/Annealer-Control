@@ -25,7 +25,7 @@ boolean eepromGood = false;
 
 void eepromStartup(void) {
   
-   // double check that we can trust the EEPROM by looking for a previously
+  // double check that we can trust the EEPROM by looking for a previously
   // stored "failsafe" value at a given address. We're going to use 
   // storedSetPoint here so we don't have to initialize a different variable
  
@@ -40,6 +40,7 @@ void eepromStartup(void) {
     EEPROM.get(ANNEAL_ADDR, storedSetPoint);
     EEPROM.get(DELAY_ADDR, storedDelaySetPoint);
     EEPROM.get(CASEDROP_ADDR, storedCaseDropSetPoint);
+    EEPROM.get(START_ON_OPTO_ADDR, startOnOpto);
 
     eepromGood = true;
 
@@ -57,6 +58,7 @@ void eepromStartup(void) {
     EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
     storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
     EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
+    EEPROM.put(START_ON_OPTO_ADDR, startOnOpto);
 
     eepromGood = false;
   }
@@ -167,4 +169,6 @@ void eepromStoreCase(int index) {
   EEPROM.put((CASE_STORED_ARRAY_START_ADDR + (index * sizeof(float))), storedCases[index].time);
 }
 
-  
+void eepromStoreStartOnOpto() {
+  EEPROM.put(START_ON_OPTO_ADDR, startOnOpto);
+}
