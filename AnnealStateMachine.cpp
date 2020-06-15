@@ -95,22 +95,6 @@ void annealStateMachine() {
       #else
         annealSetPoint += encoder.getDiff(true) / 100.0;
       #endif
-  
-      /*
-       * XXXXXX - Leave this section out, for now - not sure if it would interfere with
-       * ArduinoMenu implementation to come if we zero'ed the count or not!
-       
-      int encoderCount = encoder.getCount();
-      if ((encoderCount > 32000) || (encoderCount < -32000)) {
-        
-        #ifdef DEBUG
-        Serial.print("DEBUG: Encoder count resetting - current count ");
-        Serial.println(encoderCount);
-        #endif
-        
-        encoder.setCount(0); // prevent over/underflow
-      }
-      */
       
       encoderMoved = false;
       
@@ -201,10 +185,9 @@ void annealStateMachine() {
             Serial.print("DEBUG: OPTO1_PIN state: "); Serial.println(opto1State);
           #endif
 
-          if (opto1State == LOW) { // there's a case waiting
+          if (opto1State == LOW) { // there's a case waiting if the pin is LOW
             annealState = START_ANNEAL;
             updateLCDState();
-            opto1State = 0;
             
             #ifdef DEBUG_STATE
             stateChange = true;

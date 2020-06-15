@@ -207,17 +207,6 @@ void setup() {
   #endif
 
 
-  /*
-   * XXXXXXX
-   * 
-   * Look into error handling for Wire, encoder, and lcd initialization
-   * we need to error this out somehow, and make sure that we don't  
-   * proceed if control or display is toast - and also make sure
-   * that we can signal the user about it (LED flashes, if the screen
-   * isn't there, etc.
-   * 
-   */
-
   #ifdef DEBUG
     Serial.println("DEBUG: starting I2C and LCD");
   #endif
