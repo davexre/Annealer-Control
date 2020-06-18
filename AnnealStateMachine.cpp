@@ -33,7 +33,7 @@ void annealStateMachine() {
       if (annealState == WAIT_BUTTON) { // exit annealing mode
         nav.idleOff();
         menuState = MAIN_MENU;
-        showedAnnealingScreen = false;
+        showedScreen = false;
         (void) encoder.clear(); // clear our flags
       }
       else { // if we're in a cycle, we'll use this click to stop the cycle safely
@@ -373,7 +373,7 @@ void annealStateMachine() {
         break;
         
    
-    } // switch(StepNumber)
+    } // switch(annealState)
 
   
  }

@@ -32,6 +32,7 @@
 // #define DEBUG_LOOPTIMING
 // #define DEBUG_STATE
 // #define DEBUG_LCD
+#define DEBUG_MAYAN
 
 
 // Select the pin layout needed based on which annealer shield is in play. If none, 
@@ -126,6 +127,8 @@
 // Power sensor values
 #define AMPS_SMOOTH_RATIO   0.50
 #define VOLTS_SMOOTH_RATIO  0.50
+#define MAYAN_AMPS_SMOOTH_RATIO   0.50
+#define MAYAN_VOLTS_SMOOTH_RATIO  0.50
 
 #ifdef _AP3_VARIANT_H_
 #define VOLTS_PER_RESOLUTION  0.0029296875 // 48v over 14-bit resolution - 48 divided by 16384
@@ -196,6 +199,19 @@ enum AnnealState
   DELAY
 };
 
+enum MayanState
+{
+  WAIT_BUTTON_MAYAN,
+  START_MAYAN,
+  MAYAN_TIMER,
+  CALCULATE,
+  SAVE_DATA,
+  WAIT_DROP_CASE,
+  DROP_CASE_TIMER_MAYAN,
+  PAUSE_WAIT,
+  ABORTED
+};
+
 enum MenuState
 {
   MAIN_MENU,
@@ -206,6 +222,7 @@ enum MenuState
 extern Encoder encoder;
 
 extern AnnealState annealState;
+extern MayanState mayanState;
 extern MenuState menuState;
 
 extern const char *annealStateDesc[];
@@ -231,20 +248,26 @@ extern Chrono LCDTimer;
 extern float annealSetPoint;
 extern float delaySetPoint;
 extern float caseDropSetPoint;
+extern float mayanAccRec;
+extern float mayanRecommendation;
+extern float lastMayanRecommendation;
 
-extern boolean showedAnnealingScreen;
-
-extern boolean startOnOpto; // not currently used
+extern boolean showedScreen;
+extern boolean startOnOpto;
+extern boolean mayanUseSD; 
 
 extern int encoderDiff;
 extern int storedSetPoint; 
 extern int storedDelaySetPoint;
 extern int storedCaseDropSetPoint;
+extern int mayanCycleCount;
 
 extern boolean encoderPressed;
 extern boolean encoderMoved;
 extern volatile boolean startPressed;
 extern volatile boolean stopPressed;
+
+extern String output;
 
 extern Menu::navRoot nav;
 
@@ -268,5 +291,16 @@ void eepromCheckDelaySetPoint(void);
 void eepromCheckCaseDropSetPoint (void);
 void eepromStoreCase(int);
 void eepromStoreStartOnOpto(void);
+void mayanStateMachine(void);
+void mayanLCDWaitButton(boolean);
+void mayanLCDStartMayan(void);
+void mayanLCDCalculate(void);
+void mayanLCDSaving(void);
+void mayanLCDWait(void);
+void mayanLCDDropCase(void);
+void mayanLCDPauseWait(void);
+void mayanLCDAbort(void);
+void mayanLCDLeaveAbort(void);
+
 
 #endif // _ANNEALER_CONTROL_H

@@ -50,7 +50,7 @@
  ******************************************************/
 
 enum AnnealState annealState;
-
+enum MayanState mayanState;
 enum MenuState menuState;
 
 const char *annealStateDesc[] = {
@@ -122,7 +122,7 @@ int encoderDiff = 0;
 volatile unsigned long startdebounceMicros = 0;
 volatile unsigned long stopdebounceMicros = 0;
 
-boolean showedAnnealingScreen = false;
+boolean showedScreen = false;
 
 #ifdef DEBUG_LOOPTIMING
 unsigned long loopMillis = 0;
@@ -226,11 +226,8 @@ void setup() {
   dataDisplayMenu[1].disable();
   #endif
     
-  // Initial analog sensor baselines
+  // Initial temperature sensor baselines
   checkThermistors(true);
-
-  // initialize amps and volts for the display
-  checkPowerSensors(true);
 
   // pull the intial settings from the EEPROM
   eepromStartup();
@@ -244,7 +241,8 @@ void setup() {
   if (! LCDTimer.hasPassed(LCD_STARTUP_INTERVAL) ) {
     delay(LCD_STARTUP_INTERVAL - LCDTimer.elapsed());
   } // clear to make first output to the LCD, now
- 
+
+  lcd.setFastBacklight(255,255,255);
   lcd.clear();
 
   // Show a banner, for now - might program this as a startup screen on the LCD later
@@ -282,18 +280,35 @@ void loop() {
   if (nav.sleepTask) {  // if we're not in the ArduinoMenu system
 
     // if this is our first cycle outside the menu, draw the whole screen and save any settings
-    if (!showedAnnealingScreen) {
-      showedAnnealingScreen = true;
-      updateLCD(true);
+    if (!showedScreen) {
+      showedScreen = true;
 
-      eepromCheckAnnealSetPoint();
-      eepromCheckDelaySetPoint();
-      eepromCheckCaseDropSetPoint();
-      
+      if (menuState == ANNEALING) {
+        
+        checkPowerSensors(true);
+        updateLCD(true);
+        eepromCheckAnnealSetPoint();
+        eepromCheckDelaySetPoint();
+        eepromCheckCaseDropSetPoint();
+        
+      }
+      else if (menuState == MAYAN) {
+
+        mayanCycleCount = 0; // make sure we start at the beginning
+        mayanAccRec = 0.0;
+        mayanLCDWaitButton(true);
+        
+      }
+            
     }
 
-    // buzz through the state machine - it's in AnnealStateMachine.cpp
-    annealStateMachine();
+    // hit the correct state machine!
+    if (menuState == ANNEALING) {
+      annealStateMachine();
+    }
+    else if (menuState == MAYAN) {
+      mayanStateMachine();
+    }
     
   } // if (nav.sleepTask())
   else {

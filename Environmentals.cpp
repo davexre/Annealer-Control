@@ -15,6 +15,9 @@
 extern int temp;
 #endif
 
+#ifdef DEBUG_MAYAN
+int iterations = 0;
+#endif
 /*
  * calcSteinhart
  * 
@@ -56,6 +59,34 @@ void checkPowerSensors(boolean reset) {
 
   int ampsCalc = 0;
 
+  // if we're debugging the MAYAN feature, feed it fake data that we can control
+  #ifdef DEBUG_MAYAN
+  if (menuState == MAYAN) {
+    if (reset) {
+      amps = 0.0;
+      volts = 48.0;
+      iterations = 0;
+    }
+    else {
+      if (iterations < 200) { // steadily increase amps until 10 second mark
+        amps += 0.08;
+        volts = 45.2;
+      }
+      else if ((iterations >= 200) && (iterations < 210)) { // taper quickly
+        amps -= 0.12;
+      }
+      else {   // then more gradually
+        amps -= 0.03;
+      }
+      iterations++;
+    }
+    
+    return;
+    
+  }
+  #endif // DEBUG_MAYAN
+
+  
   if (reset) {
       amps = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
       if ( amps < 0 ) amps = 0;
@@ -64,8 +95,14 @@ void checkPowerSensors(boolean reset) {
   else {
     ampsCalc = ( ( ( analogRead(CURRENT_PIN) / RESOLUTION_MAX * VREF ) - 1.0) / 100 );
     if (ampsCalc < 0) ampsCalc = 0;
-    amps = ( ( (1.0 - AMPS_SMOOTH_RATIO) * amps ) + (AMPS_SMOOTH_RATIO * ampsCalc) );
-    volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
+    if (menuState == ANNEALING) {
+      amps = ( ( (1.0 - AMPS_SMOOTH_RATIO) * amps ) + (AMPS_SMOOTH_RATIO * ampsCalc) );
+      volts = ( (1.0 - VOLTS_SMOOTH_RATIO) * volts ) + (VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
+    }
+    else if (menuState == MAYAN) {
+      amps = ( ( (1.0 - MAYAN_AMPS_SMOOTH_RATIO) * amps ) + (MAYAN_AMPS_SMOOTH_RATIO * ampsCalc) );
+      volts = ( (1.0 - MAYAN_VOLTS_SMOOTH_RATIO) * volts ) + (MAYAN_VOLTS_SMOOTH_RATIO * ( analogRead(VOLTAGE_PIN) * VOLTS_PER_RESOLUTION ) );
+    }
   }
 
 }
