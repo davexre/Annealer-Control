@@ -42,6 +42,7 @@ const char* constMEM alphaNumMask[] MEMMODE={alphaNum};
 StoredCase target;
 
 result enterAnneal(); // proto!
+result enterMayan(); // proto!
 
 #ifdef DEBUG
   menuIn* inputsList[]={&encoderStream,&serial};
@@ -74,6 +75,14 @@ result saveCurrentTimeTarget(eventMask e, navNode& nav) {
   return(quit);
 }
 
+result copyMayan(eventMask e, navNode& nav) {
+  idx_t n=nav.root->path[nav.root->level-1].sel;
+  target.time = lastMayanRecommendation;
+  storedCases[n].time = lastMayanRecommendation;
+  eepromStoreCase(n);
+  return(proceed);
+}
+
 result saveOpto(eventMask e, navNode& nav) {
   eepromStoreStartOnOpto();
   return(proceed);
@@ -100,6 +109,7 @@ TOGGLE(startOnOpto, startOnOptoToggle,"Case Detect   ", doNothing, noEvent, wrap
 MENU(targetEdit, "Case Edit", doNothing, noEvent, wrapStyle,
   EDIT("Name", target.name, alphaNumMask, doNothing, noEvent, noStyle),
   FIELD(target.time, "Time", "", 0.0, 200.0, 0.1, 0.01, doNothing, noEvent, noStyle),
+  OP("Copy Mayan Rec", copyMayan, enterEvent),
   OP("Use", useTarget, enterEvent),
   OP("Save", saveTarget, enterEvent),
   OP("Store Current", saveCurrentTimeTarget, enterEvent),
@@ -141,6 +151,7 @@ MENU(mainMenu,"Case Burner 5000",doNothing,noEvent,wrapStyle,
   SUBMENU(annealerSettingsMenu),
   SUBMENU(dataDisplayMenu),
   OBJ(targetsMenu),
+  OP("Mayan Mode", enterMayan, enterEvent),
   EXIT("<< Back")
 );
 
@@ -161,6 +172,13 @@ result targetEvent(eventMask e, navNode& nav) {
 // fire up the annealer menu
 result enterAnneal() { 
   menuState = ANNEALING;
+  nav.idleOn();
+  
+  return(quit);
+}
+
+result enterMayan() { 
+  menuState = MAYAN;
   nav.idleOn();
   
   return(quit);
