@@ -14,7 +14,7 @@
 #include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
-
+#include <SparkFun_Qwiic_OpenLog_Arduino_Library.h>
 #include <ctype.h> 
 
 /*
@@ -32,6 +32,7 @@
 // #define DEBUG_LOOPTIMING
 // #define DEBUG_STATE
 // #define DEBUG_LCD
+#define DEBUG_MAYAN
 
 
 // Select the pin layout needed based on which annealer shield is in play. If none, 
@@ -39,6 +40,7 @@
 
 #define _PROTO_BOARD
 // #define _V3_BOARD
+// #define _V4_BOARD
 
 /*
  *  PIN CONFIGURATION
@@ -47,7 +49,7 @@
   #define  THERM1_PIN      A0
   #define  CURRENT_PIN     A1
   #define  VOLTAGE_PIN     A2
-  #define  OPTO_PIN        A5
+  #define  OPTO1_PIN        A5
   #define  INDUCTOR_PIN    4
   #define  SOLENOID_PIN    5
   #define  START_PIN       6   
@@ -79,7 +81,25 @@
   #define  ENCODER_BUTTON  12
 #endif
 
-
+#ifdef _V4_BOARD
+  #define  VOLTAGE_PIN     A0
+  #define  CURRENT_PIN     A1
+  #define  THERM1_PIN      A2
+  #define  OPTO1_PIN       A3
+  #define  THERM2_PIN      A4
+  #define  OPTO2_PIN       A5
+  #define  START_PIN       2   
+  #define  STOP_PIN        3
+  #define  INDUCTOR_PIN    4
+  #define  SOLENOID_PIN    5
+  #define  AUX1_PIN        6
+  #define  AUX2_PIN        7   
+  #define  INDUCTOR_LED    8
+  #define  SOLENOID_LED    9
+  #define  ENCODER_A_PIN   10
+  #define  ENCODER_B_PIN   11
+  #define  ENCODER_BUTTON  12
+#endif
 
 /*
  * CONSTANTS
@@ -107,6 +127,8 @@
 // Power sensor values
 #define AMPS_SMOOTH_RATIO   0.50
 #define VOLTS_SMOOTH_RATIO  0.50
+#define MAYAN_AMPS_SMOOTH_RATIO   0.50
+#define MAYAN_VOLTS_SMOOTH_RATIO  0.50
 
 #ifdef _AP3_VARIANT_H_
 #define VOLTS_PER_RESOLUTION  0.0029296875 // 48v over 14-bit resolution - 48 divided by 16384
@@ -118,11 +140,13 @@
 #define ANNEAL_ADDR   0
 #define DELAY_ADDR    4
 #define CASEDROP_ADDR 8
+#define START_ON_OPTO_ADDR  12
 #define EE_FAILSAFE_ADDR  16
 #define EE_FAILSAFE_VALUE 45  // bump in v0.5
 #define CASE_NAME_ARRAY_START_ADDR 20 // names will be 12 char + null, so this extends to addr 150
 #define CASE_STORED_ARRAY_START_ADDR 200 // this address keeps it out of the way, well past the names, extends to 240 (10 floats)
 #define NUM_CASES 10
+#define MAYAN_USE_SD_ADDR 300
 
 // Control constants
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
@@ -151,6 +175,12 @@
 #define LCD_STATE_LABEL     0,3
 #define LCD_STATE           7,3
 
+#define RED       255,0,0
+#define GREEN     0,255,0
+#define BLUE      0,0,255
+#define ORANGE    255,33,0
+#define YELLOW    255,255,0
+#define WHITE     255,255,255
 
 #define ANALOG_INTERVAL       1000
 #define LCDSTARTUP_INTERVAL   1000
@@ -176,6 +206,19 @@ enum AnnealState
   DELAY
 };
 
+enum MayanState
+{
+  WAIT_BUTTON_MAYAN,
+  START_MAYAN,
+  MAYAN_TIMER,
+  CALCULATE,
+  SAVE_DATA,
+  WAIT_DROP_CASE,
+  DROP_CASE_TIMER_MAYAN,
+  PAUSE_WAIT,
+  ABORTED
+};
+
 enum MenuState
 {
   MAIN_MENU,
@@ -185,7 +228,10 @@ enum MenuState
 
 extern Encoder encoder;
 
+extern OpenLog annealLog;
+
 extern AnnealState annealState;
+extern MayanState mayanState;
 extern MenuState menuState;
 
 extern const char *annealStateDesc[];
@@ -211,20 +257,26 @@ extern Chrono LCDTimer;
 extern float annealSetPoint;
 extern float delaySetPoint;
 extern float caseDropSetPoint;
+extern float mayanAccRec;
+extern float mayanRecommendation;
+extern float lastMayanRecommendation;
 
-extern boolean showedAnnealingScreen;
-
-extern boolean startOnOpto; // not currently used
+extern boolean showedScreen;
+extern boolean startOnOpto;
+extern boolean mayanUseSD; 
 
 extern int encoderDiff;
 extern int storedSetPoint; 
 extern int storedDelaySetPoint;
 extern int storedCaseDropSetPoint;
+extern int mayanCycleCount;
 
 extern boolean encoderPressed;
 extern boolean encoderMoved;
 extern volatile boolean startPressed;
 extern volatile boolean stopPressed;
+
+extern String output;
 
 extern Menu::navRoot nav;
 
@@ -247,5 +299,21 @@ void eepromCheckAnnealSetPoint(void);
 void eepromCheckDelaySetPoint(void);
 void eepromCheckCaseDropSetPoint (void);
 void eepromStoreCase(int);
+void eepromStoreStartOnOpto(void);
+void eepromStoreMayanUseSD(void);
+void mayanStateMachine(void);
+void mayanLCDWaitButton(boolean);
+void mayanLCDStartMayan(void);
+void mayanLCDCalculate(void);
+void mayanLCDSaving(void);
+void mayanLCDWait(void);
+void mayanLCDDropCase(void);
+void mayanLCDPauseWait(void);
+void mayanLCDAbort(void);
+void mayanLCDLeaveAbort(void);
+void annealLogStartNewFile(void);
+void annealLogCloseFile(void);
+void annealLogWrite(String);
+
 
 #endif // _ANNEALER_CONTROL_H

@@ -42,6 +42,7 @@ const char* constMEM alphaNumMask[] MEMMODE={alphaNum};
 StoredCase target;
 
 result enterAnneal(); // proto!
+result enterMayan(); // proto!
 
 #ifdef DEBUG
   menuIn* inputsList[]={&encoderStream,&serial};
@@ -74,6 +75,24 @@ result saveCurrentTimeTarget(eventMask e, navNode& nav) {
   return(quit);
 }
 
+result copyMayan(eventMask e, navNode& nav) {
+  idx_t n=nav.root->path[nav.root->level-1].sel;
+  target.time = lastMayanRecommendation;
+  storedCases[n].time = lastMayanRecommendation;
+  eepromStoreCase(n);
+  return(proceed);
+}
+
+result saveOpto(eventMask e, navNode& nav) {
+  eepromStoreStartOnOpto();
+  return(proceed);
+}
+
+result saveUseSD(eventMask e, navNode& nav) {
+  eepromStoreMayanUseSD();
+  return(proceed);
+}
+
 struct TargetMenu:UserMenu {
   using UserMenu::UserMenu;
 
@@ -86,9 +105,20 @@ result idle(menuOut &o, idleEvent e) {
   return(proceed);
 }
 
+TOGGLE(startOnOpto, startOnOptoToggle,"Case Detect   ", doNothing, noEvent, wrapStyle,
+  VALUE(" True", true, saveOpto, updateEvent),
+  VALUE("False", false, saveOpto, updateEvent)
+);
+
+TOGGLE(mayanUseSD, mayanUseSDToggle, "Mayan Use SD", doNothing, noEvent, wrapStyle,
+  VALUE(" True", true, saveUseSD, updateEvent),
+  VALUE("False", false, saveUseSD, updateEvent)
+);
+
 MENU(targetEdit, "Case Edit", doNothing, noEvent, wrapStyle,
   EDIT("Name", target.name, alphaNumMask, doNothing, noEvent, noStyle),
   FIELD(target.time, "Time", "", 0.0, 200.0, 0.1, 0.01, doNothing, noEvent, noStyle),
+  OP("Copy Mayan Rec", copyMayan, enterEvent),
   OP("Use", useTarget, enterEvent),
   OP("Save", saveTarget, enterEvent),
   OP("Store Current", saveCurrentTimeTarget, enterEvent),
@@ -99,6 +129,7 @@ MENU(annealerSettingsMenu, "Annealer Settings", doNothing, anyEvent, noStyle,
   FIELD(annealSetPoint, "Anneal Time", "sec", 0.0, 20.0, .10, 0.01, doNothing, noEvent, noStyle),
   FIELD(delaySetPoint, "Delay Time ", "sec", 0.0, 20.0, .10, 0.01, doNothing, noEvent, noStyle),
   FIELD(caseDropSetPoint, "Trapdoor   ", "sec", 0.5, 2.0, .10, 0.01, doNothing, noEvent, noStyle),
+  SUBMENU(startOnOptoToggle),
   EXIT("<< Back")
 );
 
@@ -129,6 +160,8 @@ MENU(mainMenu,"Case Burner 5000",doNothing,noEvent,wrapStyle,
   SUBMENU(annealerSettingsMenu),
   SUBMENU(dataDisplayMenu),
   OBJ(targetsMenu),
+  OP("Mayan Mode", enterMayan, enterEvent),
+  SUBMENU(mayanUseSDToggle),
   EXIT("<< Back")
 );
 
@@ -149,6 +182,13 @@ result targetEvent(eventMask e, navNode& nav) {
 // fire up the annealer menu
 result enterAnneal() { 
   menuState = ANNEALING;
+  nav.idleOn();
+  
+  return(quit);
+}
+
+result enterMayan() { 
+  menuState = MAYAN;
   nav.idleOn();
   
   return(quit);

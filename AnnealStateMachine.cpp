@@ -33,7 +33,8 @@ void annealStateMachine() {
       if (annealState == WAIT_BUTTON) { // exit annealing mode
         nav.idleOff();
         menuState = MAIN_MENU;
-        showedAnnealingScreen = false;
+        showedScreen = false;
+        lcd.setFastBacklight(WHITE);
         (void) encoder.clear(); // clear our flags
       }
       else { // if we're in a cycle, we'll use this click to stop the cycle safely
@@ -41,7 +42,7 @@ void annealStateMachine() {
         (void) encoder.isDoubleClicked(); // clear this flag in this context
         
         #ifdef DEBUG
-        Serial.println("DEBUG: Encoder clicked");
+        Serial.println(F("DEBUG: Encoder clicked"));
         #endif
       }
     }
@@ -49,7 +50,7 @@ void annealStateMachine() {
     if (startPressed && (annealState == WAIT_BUTTON)) {
       
      #ifdef DEBUG
-      Serial.println("DEBUG: start button pressed");
+      Serial.println(F("DEBUG: start button pressed"));
      #endif
      #ifdef DEBUG_STATE
       stateChange = true;
@@ -67,9 +68,10 @@ void annealStateMachine() {
       digitalWrite(SOLENOID_PIN, LOW);
       annealState = WAIT_BUTTON;
       encoderPressed = false;
+      lcd.setFastBacklight(ORANGE); // orange to show abort
       
       #ifdef DEBUG
-      Serial.println("DEBUG: stop button pressed - anneal cycle aborted");
+      Serial.println(F("DEBUG: stop button pressed - anneal cycle aborted"));
       #endif
       #ifdef DEBUG_STATE
       stateChange = true;
@@ -87,30 +89,14 @@ void annealStateMachine() {
       #ifdef DEBUG
         // heuristics to actually output the difference... sigh
         encoderDiff = encoder.getDiff(true);
-        Serial.print("DEBUG: encoder moved - diff is ");
+        Serial.print(F("DEBUG: encoder moved - diff is "));
         Serial.println(encoderDiff);
         annealSetPoint += encoderDiff / 100.0;
-        Serial.print("DEBUG: new annealSetPoint = ");
+        Serial.print(F("DEBUG: new annealSetPoint = "));
         Serial.println(annealSetPoint);
       #else
         annealSetPoint += encoder.getDiff(true) / 100.0;
       #endif
-  
-      /*
-       * XXXXXX - Leave this section out, for now - not sure if it would interfere with
-       * ArduinoMenu implementation to come if we zero'ed the count or not!
-       
-      int encoderCount = encoder.getCount();
-      if ((encoderCount > 32000) || (encoderCount < -32000)) {
-        
-        #ifdef DEBUG
-        Serial.print("DEBUG: Encoder count resetting - current count ");
-        Serial.println(encoderCount);
-        #endif
-        
-        encoder.setCount(0); // prevent over/underflow
-      }
-      */
       
       encoderMoved = false;
       
@@ -149,7 +135,7 @@ void annealStateMachine() {
       ////////////////////////////////
       case WAIT_BUTTON:
         #ifdef DEBUG_STATE
-          if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON"); stateChange = false; }
+          if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter WAIT_BUTTON")); stateChange = false; }
         #endif
         
         if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
@@ -160,6 +146,7 @@ void annealStateMachine() {
         if (startPressed) {
           annealState = WAIT_CASE;
           startPressed = false;
+          lcd.setFastBacklight(WHITE);
           updateLCDState();
           
           #ifdef DEBUG_STATE
@@ -180,7 +167,7 @@ void annealStateMachine() {
       ////////////////////////////////
       case WAIT_CASE:
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_CASE"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter WAIT_CASE")); stateChange = false; }
         #endif
   
         if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
@@ -188,21 +175,33 @@ void annealStateMachine() {
           LCDTimer.restart();
         }
 
-        // only save this if we use it
+        // only save the annealer set point if it's changed and we go to use it
         eepromCheckAnnealSetPoint();
 
-        //
-        // Note - this is where code around a proximity sensor will go. For now, all
-        // this will do is update the LCD if startOnOpto gets set to true for some
-        // reason
-        //
         if (startOnOpto) {
-          
-          updateLCDState();
+        
+          // check the sensor
+          int opto1State = 0;
+          opto1State = digitalRead(OPTO1_PIN);
+
+          #ifdef DEBUG
+            Serial.print(F("DEBUG: OPTO1_PIN state: ")); Serial.println(opto1State);
+          #endif
+
+          if (opto1State == LOW) { // there's a case waiting if the pin is LOW
+            annealState = START_ANNEAL;
+            lcd.setFastBacklight(RED);
+            updateLCDState();
+            
+            #ifdef DEBUG_STATE
+            stateChange = true;
+            #endif
+          }
           
         }
         else { // if we're not messing w/ the opto sensor, just go to the next step
           annealState = START_ANNEAL;
+          lcd.setFastBacklight(RED);
           updateLCDState();
           
           #ifdef DEBUG_STATE
@@ -225,7 +224,7 @@ void annealStateMachine() {
   
       case START_ANNEAL:
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter START_ANNEAL"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter START_ANNEAL")); stateChange = false; }
         #endif
         
         annealState = ANNEAL_TIMER;
@@ -256,7 +255,7 @@ void annealStateMachine() {
   
       case ANNEAL_TIMER:
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter ANNEAL_TIMER"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter ANNEAL_TIMER")); stateChange = false; }
         #endif
   
         if (Timer.hasPassed(floor((annealSetPoint * 1000.0) + 0.5))) {  // if we're done...
@@ -264,6 +263,7 @@ void annealStateMachine() {
           digitalWrite(LED_BUILTIN, LOW);
           annealState = DROP_CASE;
           Timer.restart();
+          lcd.setFastBacklight(BLUE);
           updateLCDState();
           LCDTimer.restart();
           
@@ -301,7 +301,7 @@ void annealStateMachine() {
    
       case DROP_CASE: 
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter DROP_CASE")); stateChange = false; }
         #endif
         
         digitalWrite(SOLENOID_PIN, HIGH);
@@ -324,7 +324,7 @@ void annealStateMachine() {
   
       case DROP_CASE_TIMER:
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER")); stateChange = false; }
         #endif
   
         // this timing isn't critical, so we'll just update normally, now
@@ -360,7 +360,7 @@ void annealStateMachine() {
       
       case DELAY:
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DELAY"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter DELAY")); stateChange = false; }
         #endif
   
         if ( LCDTimer.hasPassed(LCD_UPDATE_INTERVAL) ) {
@@ -370,7 +370,8 @@ void annealStateMachine() {
         
         if (Timer.hasPassed((int) delaySetPoint * 1000)) {
           annealState = WAIT_CASE;
-  
+          lcd.setFastBacklight(GREEN);
+          
           #ifdef DEBUG_STATE
           stateChange = true;
           #endif
@@ -379,7 +380,7 @@ void annealStateMachine() {
         break;
         
    
-    } // switch(StepNumber)
+    } // switch(annealState)
 
   
  }

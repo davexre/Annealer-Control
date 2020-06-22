@@ -11,6 +11,7 @@
  * 
  * Requires:
  *  - SparkFun SerLCD library
+ *  - SparkFun OpenLog (optional - need it if we're logging to SD in Mayan mode)
  * 
  * 
  * Options:
@@ -42,7 +43,7 @@
 #include "AnnealMenu.h"
 
 
-#define VERSION   0.6
+#define VERSION   0.7
 
 
 /******************************************************
@@ -50,7 +51,7 @@
  ******************************************************/
 
 enum AnnealState annealState;
-
+enum MayanState mayanState;
 enum MenuState menuState;
 
 const char *annealStateDesc[] = {
@@ -122,7 +123,7 @@ int encoderDiff = 0;
 volatile unsigned long startdebounceMicros = 0;
 volatile unsigned long stopdebounceMicros = 0;
 
-boolean showedAnnealingScreen = false;
+boolean showedScreen = false;
 
 #ifdef DEBUG_LOOPTIMING
 unsigned long loopMillis = 0;
@@ -177,6 +178,7 @@ void setup() {
   pinMode(START_PIN, INPUT_PULLUP);
   pinMode(STOP_PIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(OPTO1_PIN, INPUT_PULLUP);
 
 
   // make sure inductor board power is off, and the trap door is closed
@@ -199,35 +201,25 @@ void setup() {
 
   #ifdef DEBUG
     #ifdef _AP3_VARIANT_H_
-      Serial.println("DEBUG: ADC read resolution set to 14 bits");
+      Serial.println(F("DEBUG: ADC read resolution set to 14 bits"));
     #else
-      Serial.println("DEBUG: ADC read resolution set to 10 bits");
+      Serial.println(F("DEBUG: ADC read resolution set to 10 bits"));
     #endif
   #endif
 
 
-  /*
-   * XXXXXXX
-   * 
-   * Look into error handling for Wire, encoder, and lcd initialization
-   * we need to error this out somehow, and make sure that we don't  
-   * proceed if control or display is toast - and also make sure
-   * that we can signal the user about it (LED flashes, if the screen
-   * isn't there, etc.
-   * 
-   */
-
   #ifdef DEBUG
-    Serial.println("DEBUG: starting I2C and LCD");
+    Serial.println(F("DEBUG: starting I2C and LCD"));
   #endif
   
   Wire.begin();
   lcd.begin(Wire);
-  Wire.setClock(400000);
+  
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
   nav.inputBurst=10; // helps responsiveness to the encoder knob
+  nav.useUpdateEvent=true;
 
   // set the display for high temps to be read-only
   dataDisplayMenu[0].disable();
@@ -235,16 +227,18 @@ void setup() {
   dataDisplayMenu[1].disable();
   #endif
     
-  // Initial analog sensor baselines
+  // Initial temperature sensor baselines
   checkThermistors(true);
-
-  // initialize amps and volts for the display
-  checkPowerSensors(true);
 
   // pull the intial settings from the EEPROM
   eepromStartup();
   
+  if (mayanUseSD) {
+    annealLog.begin();
+  }
+  Wire.setClock(400000);
 
+  
   // double check that we've been here for a second before we talk to the LCD
   // This is to work around what seems to be a startup timing issue, where 
   // the Apollo3 CPU gets through some of the init code faster than the 
@@ -253,7 +247,8 @@ void setup() {
   if (! LCDTimer.hasPassed(LCD_STARTUP_INTERVAL) ) {
     delay(LCD_STARTUP_INTERVAL - LCDTimer.elapsed());
   } // clear to make first output to the LCD, now
- 
+
+  lcd.setFastBacklight(WHITE);
   lcd.clear();
 
   // Show a banner, for now - might program this as a startup screen on the LCD later
@@ -263,9 +258,9 @@ void setup() {
   // PREPARE FOR GLORY!!!
 
   lcd.setCursor(2,1);
-  lcd.print("CASE BURNER 5000");
+  lcd.print(F("CASE BURNER 5000"));
   lcd.setCursor(0,2);
-  lcd.print("PREPARE FOR GLORY!!!");
+  lcd.print(F("PREPARE FOR GLORY!!!"));
   delay(2000);
   
   lcd.clear();
@@ -273,7 +268,7 @@ void setup() {
 
 
   #ifdef DEBUG
-  Serial.println("DEBUG: END OF SETUP!");
+  Serial.println(F("DEBUG: END OF SETUP!"));
   #endif
 
 }
@@ -291,18 +286,36 @@ void loop() {
   if (nav.sleepTask) {  // if we're not in the ArduinoMenu system
 
     // if this is our first cycle outside the menu, draw the whole screen and save any settings
-    if (!showedAnnealingScreen) {
-      showedAnnealingScreen = true;
-      updateLCD(true);
+    if (!showedScreen) {
+      showedScreen = true;
 
-      eepromCheckAnnealSetPoint();
-      eepromCheckDelaySetPoint();
-      eepromCheckCaseDropSetPoint();
-      
+      if (menuState == ANNEALING) {
+        
+        checkPowerSensors(true);
+        lcd.setFastBacklight(GREEN);
+        updateLCD(true);
+        eepromCheckAnnealSetPoint();
+        eepromCheckDelaySetPoint();
+        eepromCheckCaseDropSetPoint();
+        
+      }
+      else if (menuState == MAYAN) {
+
+        mayanCycleCount = 0; // make sure we start at the beginning
+        mayanAccRec = 0.0;
+        mayanLCDWaitButton(true);
+        
+      }
+            
     }
 
-    // buzz through the state machine - it's in AnnealStateMachine.cpp
-    annealStateMachine();
+    // hit the correct state machine!
+    if (menuState == ANNEALING) {
+      annealStateMachine();
+    }
+    else if (menuState == MAYAN) {
+      mayanStateMachine();
+    }
     
   } // if (nav.sleepTask())
   else {
@@ -314,7 +327,7 @@ void loop() {
 
   #ifdef DEBUG_LOOPTIMING
   if ((millis() - loopMillis) > 50) {
-    Serial.print("DEBUG: loop took ");
+    Serial.print(F("DEBUG: loop took "));
     Serial.println(millis() - loopMillis);
   }
   #endif
