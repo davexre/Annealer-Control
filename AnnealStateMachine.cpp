@@ -146,7 +146,9 @@ void annealStateMachine() {
         if (startPressed) {
           annealState = WAIT_CASE;
           startPressed = false;
-          lcd.setFastBacklight(WHITE);
+          if (startOnOpto) {
+            lcd.setFastBacklight(WHITE);
+          }
           updateLCDState();
           
           #ifdef DEBUG_STATE
