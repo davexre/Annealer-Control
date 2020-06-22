@@ -33,7 +33,7 @@ void mayanLCDWaitButton(boolean full) {
 
   if (full) {
     lcd.clear();
-    lcd.setFastBacklight(255, 255, 255);
+    lcd.setFastBacklight(WHITE);
     lcd.setCursor(7,0);
     lcd.print(F("MAYAN!"));
   }
@@ -75,8 +75,7 @@ void mayanLCDWaitButton(boolean full) {
  * Cyc: XX  ARec: XX.XX
  */
 void mayanLCDStartMayan() {
-  // RED
-  lcd.setFastBacklight(255, 0, 0);
+  lcd.setFastBacklight(RED);
   lcd.setCursor(0,1);
   lcd.print(F("   RUNNING  CYCLE  "));
   lcd.setCursor(0,2);
@@ -107,8 +106,7 @@ void mayanLCDStartMayan() {
  * Cyc: XX  ARec: XX.XX
  */
 void mayanLCDCalculate() {
-  // YELLOW
-  lcd.setFastBacklight(255, 255, 0);
+  lcd.setFastBacklight(YELLOW);
   lcd.setCursor(0,1);
   lcd.print(F("    CALCULATING     "));
 }
@@ -134,8 +132,7 @@ void mayanLCDSaving() {
  * Cyc: XX  ARec: XX.XX
  */
 void mayanLCDWait() {
-  // GREEN
-  lcd.setFastBacklight(0, 255, 0);
+  lcd.setFastBacklight(GREEN);
   lcd.setCursor(0,1);
 
   output = "";
@@ -175,8 +172,7 @@ void mayanLCDDropCase() {
  * Cyc: XX  ARec: XX.XX
  */
 void mayanLCDPauseWait() {
-  // WHITE
-  lcd.setFastBacklight(255,255,255);
+  lcd.setFastBacklight(WHITE);
 
   lcd.setCursor(0,1);
   lcd.print(F("START for next case "));
@@ -193,8 +189,7 @@ void mayanLCDPauseWait() {
  * Cyc: XX  ARec: XX.XX
  */
 void mayanLCDAbort() {
-  // ORANGE
-  lcd.setFastBacklight(0xFF8C00);
+  lcd.setFastBacklight(ORANGE);
   lcd.setCursor(6,0);
   lcd.print(F("ABORTED!"));
   lcd.setCursor(0,1);
@@ -205,8 +200,7 @@ void mayanLCDAbort() {
 
 // reprint the MAYAN! header
 void mayanLCDLeaveAbort() {
-  // WHITE
-  lcd.setFastBacklight(255,255,255);
+  lcd.setFastBacklight(WHITE);
   lcd.setCursor(6,0);
   lcd.print(F(" MAYAN! "));
 }

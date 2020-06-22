@@ -175,6 +175,12 @@
 #define LCD_STATE_LABEL     0,3
 #define LCD_STATE           7,3
 
+#define RED       255,0,0
+#define GREEN     0,255,0
+#define BLUE      0,0,255
+#define ORANGE    255,33,0
+#define YELLOW    255,255,0
+#define WHITE     255,255,255
 
 #define ANALOG_INTERVAL       1000
 #define LCDSTARTUP_INTERVAL   1000

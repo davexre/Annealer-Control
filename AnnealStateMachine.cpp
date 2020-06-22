@@ -34,6 +34,7 @@ void annealStateMachine() {
         nav.idleOff();
         menuState = MAIN_MENU;
         showedScreen = false;
+        lcd.setFastBacklight(WHITE);
         (void) encoder.clear(); // clear our flags
       }
       else { // if we're in a cycle, we'll use this click to stop the cycle safely
@@ -67,6 +68,7 @@ void annealStateMachine() {
       digitalWrite(SOLENOID_PIN, LOW);
       annealState = WAIT_BUTTON;
       encoderPressed = false;
+      lcd.setFastBacklight(ORANGE); // orange to show abort
       
       #ifdef DEBUG
       Serial.println(F("DEBUG: stop button pressed - anneal cycle aborted"));
@@ -144,6 +146,7 @@ void annealStateMachine() {
         if (startPressed) {
           annealState = WAIT_CASE;
           startPressed = false;
+          lcd.setFastBacklight(WHITE);
           updateLCDState();
           
           #ifdef DEBUG_STATE
@@ -187,6 +190,7 @@ void annealStateMachine() {
 
           if (opto1State == LOW) { // there's a case waiting if the pin is LOW
             annealState = START_ANNEAL;
+            lcd.setFastBacklight(RED);
             updateLCDState();
             
             #ifdef DEBUG_STATE
@@ -197,6 +201,7 @@ void annealStateMachine() {
         }
         else { // if we're not messing w/ the opto sensor, just go to the next step
           annealState = START_ANNEAL;
+          lcd.setFastBacklight(RED);
           updateLCDState();
           
           #ifdef DEBUG_STATE
@@ -258,6 +263,7 @@ void annealStateMachine() {
           digitalWrite(LED_BUILTIN, LOW);
           annealState = DROP_CASE;
           Timer.restart();
+          lcd.setFastBacklight(BLUE);
           updateLCDState();
           LCDTimer.restart();
           
@@ -364,7 +370,8 @@ void annealStateMachine() {
         
         if (Timer.hasPassed((int) delaySetPoint * 1000)) {
           annealState = WAIT_CASE;
-  
+          lcd.setFastBacklight(GREEN);
+          
           #ifdef DEBUG_STATE
           stateChange = true;
           #endif

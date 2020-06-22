@@ -248,7 +248,7 @@ void setup() {
     delay(LCD_STARTUP_INTERVAL - LCDTimer.elapsed());
   } // clear to make first output to the LCD, now
 
-  lcd.setFastBacklight(255,255,255);
+  lcd.setFastBacklight(WHITE);
   lcd.clear();
 
   // Show a banner, for now - might program this as a startup screen on the LCD later
@@ -292,6 +292,7 @@ void loop() {
       if (menuState == ANNEALING) {
         
         checkPowerSensors(true);
+        lcd.setFastBacklight(GREEN);
         updateLCD(true);
         eepromCheckAnnealSetPoint();
         eepromCheckDelaySetPoint();
