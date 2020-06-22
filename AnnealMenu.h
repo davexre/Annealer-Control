@@ -88,6 +88,11 @@ result saveOpto(eventMask e, navNode& nav) {
   return(proceed);
 }
 
+result saveUseSD(eventMask e, navNode& nav) {
+  eepromStoreMayanUseSD();
+  return(proceed);
+}
+
 struct TargetMenu:UserMenu {
   using UserMenu::UserMenu;
 
@@ -105,6 +110,10 @@ TOGGLE(startOnOpto, startOnOptoToggle,"Case Detect   ", doNothing, noEvent, wrap
   VALUE("False", false, saveOpto, updateEvent)
 );
 
+TOGGLE(mayanUseSD, mayanUseSDToggle, "Mayan Use SD", doNothing, noEvent, wrapStyle,
+  VALUE(" True", true, saveUseSD, updateEvent),
+  VALUE("False", false, saveUseSD, updateEvent)
+);
 
 MENU(targetEdit, "Case Edit", doNothing, noEvent, wrapStyle,
   EDIT("Name", target.name, alphaNumMask, doNothing, noEvent, noStyle),
@@ -152,6 +161,7 @@ MENU(mainMenu,"Case Burner 5000",doNothing,noEvent,wrapStyle,
   SUBMENU(dataDisplayMenu),
   OBJ(targetsMenu),
   OP("Mayan Mode", enterMayan, enterEvent),
+  SUBMENU(mayanUseSDToggle),
   EXIT("<< Back")
 );
 

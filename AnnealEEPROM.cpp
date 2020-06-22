@@ -37,10 +37,14 @@ void eepromStartup(void) {
       Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
     #endif
 
+    // XXXXXX - delete this after first use!
+    EEPROM.put(MAYAN_USE_SD_ADDR, mayanUseSD);
+    
     EEPROM.get(ANNEAL_ADDR, storedSetPoint);
     EEPROM.get(DELAY_ADDR, storedDelaySetPoint);
     EEPROM.get(CASEDROP_ADDR, storedCaseDropSetPoint);
     EEPROM.get(START_ON_OPTO_ADDR, startOnOpto);
+    EEPROM.get(MAYAN_USE_SD_ADDR, mayanUseSD);
 
     eepromGood = true;
 
@@ -59,6 +63,7 @@ void eepromStartup(void) {
     storedCaseDropSetPoint = CASE_DROP_DELAY_DEFAULT;
     EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
     EEPROM.put(START_ON_OPTO_ADDR, startOnOpto);
+    EEPROM.put(MAYAN_USE_SD_ADDR, mayanUseSD);
 
     eepromGood = false;
   }
@@ -171,4 +176,8 @@ void eepromStoreCase(int index) {
 
 void eepromStoreStartOnOpto() {
   EEPROM.put(START_ON_OPTO_ADDR, startOnOpto);
+}
+
+void eepromStoreMayanUseSD() {
+  EEPROM.put(MAYAN_USE_SD_ADDR, mayanUseSD);
 }

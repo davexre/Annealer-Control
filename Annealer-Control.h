@@ -14,7 +14,7 @@
 #include <Rencoder.h>
 #include <SerLCD.h> // SerLCD from SparkFun - http://librarymanager/All#SparkFun_SerLCD
 #include <Wire.h>
-
+#include <SparkFun_Qwiic_OpenLog_Arduino_Library.h>
 #include <ctype.h> 
 
 /*
@@ -146,6 +146,7 @@
 #define CASE_NAME_ARRAY_START_ADDR 20 // names will be 12 char + null, so this extends to addr 150
 #define CASE_STORED_ARRAY_START_ADDR 200 // this address keeps it out of the way, well past the names, extends to 240 (10 floats)
 #define NUM_CASES 10
+#define MAYAN_USE_SD_ADDR 300
 
 // Control constants
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
@@ -221,6 +222,8 @@ enum MenuState
 
 extern Encoder encoder;
 
+extern OpenLog annealLog;
+
 extern AnnealState annealState;
 extern MayanState mayanState;
 extern MenuState menuState;
@@ -291,6 +294,7 @@ void eepromCheckDelaySetPoint(void);
 void eepromCheckCaseDropSetPoint (void);
 void eepromStoreCase(int);
 void eepromStoreStartOnOpto(void);
+void eepromStoreMayanUseSD(void);
 void mayanStateMachine(void);
 void mayanLCDWaitButton(boolean);
 void mayanLCDStartMayan(void);
@@ -301,6 +305,9 @@ void mayanLCDDropCase(void);
 void mayanLCDPauseWait(void);
 void mayanLCDAbort(void);
 void mayanLCDLeaveAbort(void);
+void annealLogStartNewFile(void);
+void annealLogCloseFile(void);
+void annealLogWrite(String);
 
 
 #endif // _ANNEALER_CONTROL_H

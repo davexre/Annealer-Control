@@ -40,7 +40,7 @@ struct MayanDataPoint {
 };
 
 boolean mayanScreenUpdate = false;
-boolean mayanUseSD = false;
+boolean mayanUseSD = true;
 int mayanStartMillis = 0;
 int mayanCurrentMillis = 0;
 int mayanLoopCount = 0;
@@ -80,6 +80,30 @@ void mayanPrintDataToSerial() {
 }
 #endif
 
+void mayanSaveDataToSD() {
+  std::vector<MayanDataPoint*>::size_type i, sz;
+  sz = mayanDataPoints.size();
+  char c[6];
+
+  #ifdef DEBUG
+  Serial.println("DEBUG: MAYAN: Saving data to SD card!");
+  #endif
+
+  for (i = 0; i < sz; i++) {
+    output = "";
+    output.concat(mayanCycleCount);
+    output.concat(",");
+    output.concat(mayanDataPoints[i]->timestamp);
+    output.concat(",");
+    dtostrf(mayanDataPoints[i]->dpAmps, 5, 2, c);
+    output.concat(c);
+    output.concat(",");
+    dtostrf(mayanDataPoints[i]->dpVolts, 5, 2, c);
+    output.concat(c);
+    annealLogWrite(output);
+  }
+  
+}
 
 void mayanStateMachine() {
 
@@ -162,7 +186,12 @@ void mayanStateMachine() {
         
       }
     
-    
+      if (AnalogSensors.hasPassed(ANALOG_INTERVAL, true)) {   // Note - the boolean restarts the timer for us
+      
+        checkThermistors(false);
+        
+      } // if (AnalogSensors...
+      
     ////////////////////////////////////////////////////////
     // Basic state machine for the Mayan cycle
     ////////////////////////////////////////////////////////
@@ -245,7 +274,12 @@ void mayanStateMachine() {
         newdp->dpAmps = amps;
         newdp->dpVolts = volts;
         mayanDataPoints.push_back(newdp);
-             
+
+        // if Cycle count is 0, open a new file
+        if ((mayanCycleCount == 0) && mayanUseSD) { // start a new file
+           annealLogStartNewFile();  
+        }
+        
         mayanLoopCount = 1;
         mayanCycleCount++;
         mayanStartMillis = millis();
@@ -386,8 +420,7 @@ void mayanStateMachine() {
                 
         // if we don't care about saving the data, move on
         if (mayanUseSD) {
-          // if Cycle count is 1, open a new file
-          // write to a CSV file on the SD card
+          mayanSaveDataToSD();
         }
 
         #ifdef DEBUG_MAYAN
@@ -482,7 +515,7 @@ void mayanStateMachine() {
         if (stopPressed) { // we're ending this cycle 
 
           if (mayanUseSD) {
-            // do what's needed to close the file
+            annealLogCloseFile();
           }
           mayanStartMillis = 0;
           mayanCurrentMillis = 0;

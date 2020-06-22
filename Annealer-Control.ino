@@ -11,6 +11,7 @@
  * 
  * Requires:
  *  - SparkFun SerLCD library
+ *  - SparkFun OpenLog (optional - need it if we're logging to SD in Mayan mode)
  * 
  * 
  * Options:
@@ -213,7 +214,7 @@ void setup() {
   
   Wire.begin();
   lcd.begin(Wire);
-  Wire.setClock(400000);
+  
 
   // set up the menu system a bit ahead of initial call to nav.poll() below
   nav.idleTask=idle;
@@ -232,7 +233,12 @@ void setup() {
   // pull the intial settings from the EEPROM
   eepromStartup();
   
+  if (mayanUseSD) {
+    annealLog.begin();
+  }
+  Wire.setClock(400000);
 
+  
   // double check that we've been here for a second before we talk to the LCD
   // This is to work around what seems to be a startup timing issue, where 
   // the Apollo3 CPU gets through some of the init code faster than the 
