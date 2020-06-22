@@ -34,7 +34,7 @@ void eepromStartup(void) {
   if (storedSetPoint == EE_FAILSAFE_VALUE) {
  
     #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe - found <"); Serial.print(storedSetPoint); Serial.println(">");
+      Serial.print(F("DEBUG: EEPROM Failsafe - found <")); Serial.print(storedSetPoint); Serial.println(F(">"));
     #endif
 
     // XXXXXX - delete this after first use!
@@ -52,7 +52,7 @@ void eepromStartup(void) {
   else { // don't trust the EEPROM!
     
     #ifdef DEBUG
-      Serial.print("DEBUG: EEPROM Failsafe failed - found <"); Serial.print(storedSetPoint); Serial.println(">");
+      Serial.print(F("DEBUG: EEPROM Failsafe failed - found <")); Serial.print(storedSetPoint); Serial.println(F(">"));
     #endif
     storedSetPoint = EE_FAILSAFE_VALUE; // here we go, borrowing again
     EEPROM.put(EE_FAILSAFE_ADDR, storedSetPoint);
@@ -99,11 +99,11 @@ void eepromStartup(void) {
   
 
   #ifdef DEBUG
-    Serial.print("DEBUG: Starting Anneal set point: ");
+    Serial.print(F("DEBUG: Starting Anneal set point: "));
     Serial.println(annealSetPoint, 2);
-    Serial.print("DEBUG: EEPROM stored Delay set point: ");
+    Serial.print(F("DEBUG: EEPROM stored Delay set point: "));
     Serial.println(delaySetPoint, 2);
-    Serial.print("DEBUG: EEPROM stored Case Drop set point: ");
+    Serial.print(F("DEBUG: EEPROM stored Case Drop set point: "));
     Serial.println(caseDropSetPoint, 2);
   #endif
   
@@ -124,19 +124,19 @@ void eepromStartup(void) {
 void eepromCheckAnnealSetPoint(void) {
 
   #ifdef DEBUG
-    Serial.print("DEBUG: EEPROM checking annealSetPoint: storedSetPoint <");
+    Serial.print(F("DEBUG: EEPROM checking annealSetPoint: storedSetPoint <"));
     Serial.print(storedSetPoint);
-    Serial.print("> annealSetPoint <");
+    Serial.print(F("> annealSetPoint <"));
     Serial.print(annealSetPoint, 2);
-    Serial.println(">");
-    Serial.print("DEBUG: EEPROM floor of annealSetPoint * 100 = ");
+    Serial.println(F(">"));
+    Serial.print("F(DEBUG: EEPROM floor of annealSetPoint * 100 = "));
     Serial.println(floor((annealSetPoint * 100.00) + 0.5));
   #endif
   
   if (storedSetPoint != floor((annealSetPoint * 100.0) + 0.5)) {
    storedSetPoint = floor((annealSetPoint * 100.0) + 0.5);
     #ifdef DEBUG
-      Serial.print("DEBUG: storedSetPoint != annealSetPoint. Setting to: "); Serial.println(storedSetPoint);
+      Serial.print(F("DEBUG: storedSetPoint != annealSetPoint. Setting to: ")); Serial.println(storedSetPoint);
     #endif
     EEPROM.put(ANNEAL_ADDR, storedSetPoint);
   }
@@ -145,12 +145,12 @@ void eepromCheckAnnealSetPoint(void) {
 
 void eepromCheckDelaySetPoint(void) {
   #ifdef DEBUG
-    Serial.println("DEBUG: EEPROM checking delaySetPoint");
+    Serial.println(F("DEBUG: EEPROM checking delaySetPoint"));
   #endif
   if (storedDelaySetPoint != floor((delaySetPoint * 100.0) + 0.5)) {
     storedDelaySetPoint = floor((delaySetPoint * 100.0) + 0.5);
     #ifdef DEBUG
-      Serial.print("DEBUG: storedDelaySetPoint != delaySetPoint. Setting to: "); Serial.println(storedDelaySetPoint);
+      Serial.print(F("DEBUG: storedDelaySetPoint != delaySetPoint. Setting to: ")); Serial.println(storedDelaySetPoint);
     #endif
     EEPROM.put(DELAY_ADDR, storedDelaySetPoint);
   }
@@ -158,12 +158,12 @@ void eepromCheckDelaySetPoint(void) {
 
 void eepromCheckCaseDropSetPoint (void) {
   #ifdef DEBUG
-    Serial.println("DEBUG: EEPROM checking caseDropSetPoint");
+    Serial.println(F("DEBUG: EEPROM checking caseDropSetPoint"));
   #endif
   if (storedCaseDropSetPoint != floor((caseDropSetPoint * 100.0) + 0.5)) {
     storedCaseDropSetPoint = floor((caseDropSetPoint * 100.0) + 0.5);
     #ifdef DEBUG
-      Serial.print("DEBUG: storedCaseDropSetPoint != caseDropSetPoint. Setting to: "); Serial.println(storedCaseDropSetPoint);
+      Serial.print(F("DEBUG: storedCaseDropSetPoint != caseDropSetPoint. Setting to: ")); Serial.println(storedCaseDropSetPoint);
     #endif
     EEPROM.put(CASEDROP_ADDR, storedCaseDropSetPoint);
   }

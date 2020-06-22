@@ -32,7 +32,7 @@ void annealLogStartNewFile(void) {
   if (status == 0xFF) {
     // we're toast
     #ifdef DEBUG
-    Serial.println("DEBUG: LOG: OpenLog device not available; mayanUseSD set to false");
+    Serial.println(F("DEBUG: LOG: OpenLog device not available; mayanUseSD set to false"));
     #endif
     
     mayanUseSD = false;
@@ -43,7 +43,7 @@ void annealLogStartNewFile(void) {
   if (! status & 1<<STATUS_SD_INIT_GOOD) {
     // we're still toast - OpenLog is working, but seemingly no SD card
     #ifdef DEBUG
-    Serial.println("DEBUG: LOG: SD card appears to be uninitialized; mayanUseSD set to false");
+    Serial.println(F("DEBUG: LOG: SD card appears to be uninitialized; mayanUseSD set to false"));
     #endif
     
     mayanUseSD = false;
@@ -58,14 +58,14 @@ void annealLogStartNewFile(void) {
     // strip the extension
     
     #ifdef DEBUG
-    Serial.print("DEBUG: LOG: file in dir ");
+    Serial.print(F("DEBUG: LOG: file in dir "));
     Serial.println(fileName);
     #endif
     
     fileName.remove(fileName.length() - 4); // ".CSV"
 
     #ifdef DEBUG
-    Serial.print("DEBUG: LOG: file name minus extension ");
+    Serial.print(F("DEBUG: LOG: file name minus extension "));
     Serial.println(fileName);
     #endif
 
@@ -81,17 +81,17 @@ void annealLogStartNewFile(void) {
   // increment that number by one and start our new file
   highestFileNum++;
   String newFileName = String(highestFileNum);
-  newFileName.concat(".CSV");
+  newFileName.concat(F(".CSV"));
 
   #ifdef DEBUG
-  Serial.print("DEBUG: LOG: opening file ");
+  Serial.print(F("DEBUG: LOG: opening file "));
   Serial.println(newFileName);
   #endif
 
   if (! annealLog.append(newFileName)) {
     mayanUseSD = false;
     #ifdef DEBUG
-    Serial.println("DEBUG: LOG: append of new file name returned false; mayanUseSD set to false");
+    Serial.println(F("DEBUG: LOG: append of new file name returned false; mayanUseSD set to false"));
     #endif
     
   }

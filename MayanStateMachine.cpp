@@ -61,21 +61,21 @@ void mayanPrintDataToSerial() {
   sz = mayanDataPoints.size();
   char c[6];
   
-  Serial.println("MAYAN data dump");
+  Serial.println(F("MAYAN data dump"));
 
   for (i = 0; i < sz; i++) {
     output = "";
     output.concat(mayanDataPoints[i]->timestamp);
-    output.concat(",");
+    output.concat(F(","));
     dtostrf(mayanDataPoints[i]->dpAmps, 5, 2, c);
     output.concat(c);
-    output.concat(",");
+    output.concat(F(","));
     dtostrf(mayanDataPoints[i]->dpVolts, 5, 2, c);
     output.concat(c);
     Serial.println(output);
   }
 
-  Serial.println("");
+  Serial.println(F(""));
   
 }
 #endif
@@ -86,18 +86,18 @@ void mayanSaveDataToSD() {
   char c[6];
 
   #ifdef DEBUG
-  Serial.println("DEBUG: MAYAN: Saving data to SD card!");
+  Serial.println(F("DEBUG: MAYAN: Saving data to SD card!"));
   #endif
 
   for (i = 0; i < sz; i++) {
     output = "";
     output.concat(mayanCycleCount);
-    output.concat(",");
+    output.concat(F(","));
     output.concat(mayanDataPoints[i]->timestamp);
-    output.concat(",");
+    output.concat(F(","));
     dtostrf(mayanDataPoints[i]->dpAmps, 5, 2, c);
     output.concat(c);
-    output.concat(",");
+    output.concat(F(","));
     dtostrf(mayanDataPoints[i]->dpVolts, 5, 2, c);
     output.concat(c);
     annealLogWrite(output);
@@ -118,7 +118,7 @@ void mayanStateMachine() {
       (void) encoder.isDoubleClicked(); // clear this flag in this context
       
       #ifdef DEBUG
-      Serial.println("DEBUG: Encoder clicked");
+      Serial.println(F("DEBUG: Encoder clicked"));
       #endif
 
     }
@@ -133,7 +133,7 @@ void mayanStateMachine() {
         case ABORTED: 
                 
           #ifdef DEBUG
-          Serial.println("DEBUG: start button pressed");
+          Serial.println(F("DEBUG: start button pressed"));
           #endif
           
           #ifdef DEBUG_STATE
@@ -174,7 +174,7 @@ void mayanStateMachine() {
           encoderPressed = false;
           
           #ifdef DEBUG
-          Serial.println("DEBUG: stop button pressed - Mayan cycle aborted");
+          Serial.println(F("DEBUG: stop button pressed - Mayan cycle aborted"));
           #endif
           #ifdef DEBUG_STATE
           stateChange = true;
@@ -208,7 +208,7 @@ void mayanStateMachine() {
       ////////////////////////////////
       case WAIT_BUTTON_MAYAN: {
         #ifdef DEBUG_STATE
-          if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_BUTTON_MAYAN"); stateChange = false; }
+          if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter WAIT_BUTTON_MAYAN")); stateChange = false; }
         #endif
 
         // need to update the LCD in some fashion, here, on entry ("press button to start")
@@ -219,7 +219,7 @@ void mayanStateMachine() {
         
         if (stopPressed) {
           #ifdef DEBUG
-          Serial.println("DEBUG: MAYAN: Stop Pressed in WAIT_BUTTON_MAYAN");
+          Serial.println(F("DEBUG: MAYAN: Stop Pressed in WAIT_BUTTON_MAYAN"));
           #endif
           
           lcd.setFastBacklight(255, 255, 255);
@@ -256,7 +256,7 @@ void mayanStateMachine() {
   
       case START_MAYAN: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter START_MAYAN"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter START_MAYAN")); stateChange = false; }
         #endif
 
         mayanLCDStartMayan();
@@ -305,7 +305,7 @@ void mayanStateMachine() {
   
       case MAYAN_TIMER: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter MAYAN_TIMER"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter MAYAN_TIMER")); stateChange = false; }
         #endif
 
         // on the Artemis, analogRead appears to take .08 milliseconds - two reads take about .15 milliseconds
@@ -317,7 +317,7 @@ void mayanStateMachine() {
           mayanLoopCount++;
 
           #ifdef DEBUG_MAYAN
-          Serial.print("MAYAN: Loop Count "); Serial.println(mayanLoopCount);
+          Serial.print(F("MAYAN: Loop Count ")); Serial.println(mayanLoopCount);
           #endif
           
           checkPowerSensors(false);
@@ -340,7 +340,7 @@ void mayanStateMachine() {
           // this algorithm can likely be improved
 
           #ifdef DEBUG_MAYAN
-          Serial.print("MAYAN: ampsBuffer.last = "); Serial.print(ampsBuffer.last()); Serial.print(" ampsBuffer.first = "); Serial.println(ampsBuffer.first());
+          Serial.print(F("MAYAN: ampsBuffer.last = ")); Serial.print(ampsBuffer.last()); Serial.print(F(" ampsBuffer.first = ")); Serial.println(ampsBuffer.first());
           #endif
           
           if ((ampsBuffer.last() - ampsBuffer.first()) < 0.0) {
@@ -366,7 +366,7 @@ void mayanStateMachine() {
 
       case CALCULATE: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter CALCULATE"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter CALCULATE")); stateChange = false; }
         #endif
         
         // after running calculations, we advance to the next state
@@ -413,7 +413,7 @@ void mayanStateMachine() {
 
       case SAVE_DATA: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter SAVE_DATA"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter SAVE_DATA")); stateChange = false; }
         #endif
         
         mayanLCDSaving();
@@ -446,7 +446,7 @@ void mayanStateMachine() {
    
       case WAIT_DROP_CASE: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter WAIT_DROP_CASE"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter WAIT_DROP_CASE")); stateChange = false; }
         #endif
 
         mayanLCDWait();
@@ -476,7 +476,7 @@ void mayanStateMachine() {
   
       case DROP_CASE_TIMER_MAYAN: {
         #ifdef DEBUG_STATE
-        if (stateChange) { Serial.println("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER_MAYAN"); stateChange = false; }
+        if (stateChange) { Serial.println(F("DEBUG: STATE MACHINE: enter DROP_CASE_TIMER_MAYAN")); stateChange = false; }
         #endif
   
       
@@ -504,7 +504,7 @@ void mayanStateMachine() {
 
       case PAUSE_WAIT: {
         #ifdef DEBUG_STATE
-        Serial.println("DEBUG: STATE MACHINE: enter PAUSE_WAIT"); stateChange = false;
+        Serial.println(F("DEBUG: STATE MACHINE: enter PAUSE_WAIT")); stateChange = false;
         #endif
         
         if (mayanScreenUpdate) {
@@ -550,7 +550,7 @@ void mayanStateMachine() {
       
       case ABORTED: {
         #ifdef DEBUG_STATE
-        Serial.println("DEBUG: STATE MACHINE: enter ABORTED"); stateChange = false; 
+        Serial.println(F("DEBUG: STATE MACHINE: enter ABORTED")); stateChange = false; 
         #endif
 
         // show something appropriate on the LCD, based on which state we're in

@@ -35,27 +35,27 @@ void mayanLCDWaitButton(boolean full) {
     lcd.clear();
     lcd.setFastBacklight(255, 255, 255);
     lcd.setCursor(7,0);
-    lcd.print("MAYAN!");
+    lcd.print(F("MAYAN!"));
   }
 
   lcd.setCursor(0,1);
-  lcd.print("START to begin      ");
+  lcd.print(F("START to begin      "));
   lcd.setCursor(0,2);
-  lcd.print("STOP  to exit Mayan ");
+  lcd.print(F("STOP  to exit Mayan "));
 
   lcd.setCursor(0,3);
   if (mayanCycleCount > 0) {
 
-    output = "Cyc: ";
+    output = F("Cyc: ");
     if (mayanCycleCount < 10) {
       output.concat(" ");
     }
     output.concat(mayanCycleCount);
   
-    output.concat("  ARec: ");
+    output.concat(F("  ARec: "));
 
     if (mayanAccRec < 10.0) {
-      output.concat(" ");
+      output.concat(F(" "));
     }
     dtostrf(mayanAccRec, 5, 2, c);
     output.concat(c);
@@ -78,9 +78,9 @@ void mayanLCDStartMayan() {
   // RED
   lcd.setFastBacklight(255, 0, 0);
   lcd.setCursor(0,1);
-  lcd.print("   RUNNING  CYCLE  ");
+  lcd.print(F("   RUNNING  CYCLE  "));
   lcd.setCursor(0,2);
-  lcd.print("   STOP to cancel   ");
+  lcd.print(F("   STOP to cancel   "));
   
   if (mayanCycleCount > 1) {
     lcd.setCursor(5,3);
@@ -88,14 +88,14 @@ void mayanLCDStartMayan() {
     output = "";
     
     if (mayanCycleCount < 10) {
-      output.concat(" ");
+      output.concat(F(" "));
     }
     output.concat(mayanCycleCount);
     lcd.print(output);
   }
   else {
     lcd.setCursor(0,3);
-    lcd.print("Cyc:  1  ARec: 00.00");
+    lcd.print(F("Cyc:  1  ARec: 00.00"));
   }
 }
 
@@ -110,7 +110,7 @@ void mayanLCDCalculate() {
   // YELLOW
   lcd.setFastBacklight(255, 255, 0);
   lcd.setCursor(0,1);
-  lcd.print("    CALCULATING     ");
+  lcd.print(F("    CALCULATING     "));
 }
 
 /*
@@ -122,7 +122,7 @@ void mayanLCDCalculate() {
  */
 void mayanLCDSaving() {
   lcd.setCursor(0,1);
-  lcd.print("    SAVING DATA     ");
+  lcd.print(F("    SAVING DATA     "));
 
 }
 
@@ -139,20 +139,20 @@ void mayanLCDWait() {
   lcd.setCursor(0,1);
 
   output = "";
-  output.concat("  Recommend: ");
+  output.concat(F("  Recommend: "));
 
   dtostrf(mayanRecommendation, 5, 2, c);
   output.concat(c);
-  output.concat("  ");
+  output.concat(F("  "));
   lcd.print(output);
 
   lcd.setCursor(0,2);
-  lcd.print("  STOP to drop case ");
+  lcd.print(F("  STOP to drop case "));
 
   lcd.setCursor(14,3); // new accumulated recommendation
   output="";
   if (mayanAccRec < 10.0) {
-    output.concat(" ");
+    output.concat(F(" "));
   }
   dtostrf(mayanAccRec, 5, 2, c);
   output.concat(c);
@@ -179,9 +179,9 @@ void mayanLCDPauseWait() {
   lcd.setFastBacklight(255,255,255);
 
   lcd.setCursor(0,1);
-  lcd.print("START for next case ");
+  lcd.print(F("START for next case "));
   lcd.setCursor(0,2);
-  lcd.print("STOP to end analysis");
+  lcd.print(F("STOP to end analysis"));
   
 }
 
@@ -196,11 +196,11 @@ void mayanLCDAbort() {
   // ORANGE
   lcd.setFastBacklight(0xFF8C00);
   lcd.setCursor(6,0);
-  lcd.print("ABORTED!");
+  lcd.print(F("ABORTED!"));
   lcd.setCursor(0,1);
-  lcd.print("START for next case ");
+  lcd.print(F("START for next case "));
   lcd.setCursor(0,2);
-  lcd.print("STOP to end analysis");
+  lcd.print(F("STOP to end analysis"));
 }
 
 // reprint the MAYAN! header
@@ -208,5 +208,5 @@ void mayanLCDLeaveAbort() {
   // WHITE
   lcd.setFastBacklight(255,255,255);
   lcd.setCursor(6,0);
-  lcd.print(" MAYAN! ");
+  lcd.print(F(" MAYAN! "));
 }

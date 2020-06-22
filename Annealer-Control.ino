@@ -201,15 +201,15 @@ void setup() {
 
   #ifdef DEBUG
     #ifdef _AP3_VARIANT_H_
-      Serial.println("DEBUG: ADC read resolution set to 14 bits");
+      Serial.println(F("DEBUG: ADC read resolution set to 14 bits"));
     #else
-      Serial.println("DEBUG: ADC read resolution set to 10 bits");
+      Serial.println(F("DEBUG: ADC read resolution set to 10 bits"));
     #endif
   #endif
 
 
   #ifdef DEBUG
-    Serial.println("DEBUG: starting I2C and LCD");
+    Serial.println(F("DEBUG: starting I2C and LCD"));
   #endif
   
   Wire.begin();
@@ -258,9 +258,9 @@ void setup() {
   // PREPARE FOR GLORY!!!
 
   lcd.setCursor(2,1);
-  lcd.print("CASE BURNER 5000");
+  lcd.print(F("CASE BURNER 5000"));
   lcd.setCursor(0,2);
-  lcd.print("PREPARE FOR GLORY!!!");
+  lcd.print(F("PREPARE FOR GLORY!!!"));
   delay(2000);
   
   lcd.clear();
@@ -268,7 +268,7 @@ void setup() {
 
 
   #ifdef DEBUG
-  Serial.println("DEBUG: END OF SETUP!");
+  Serial.println(F("DEBUG: END OF SETUP!"));
   #endif
 
 }
@@ -326,7 +326,7 @@ void loop() {
 
   #ifdef DEBUG_LOOPTIMING
   if ((millis() - loopMillis) > 50) {
-    Serial.print("DEBUG: loop took ");
+    Serial.print(F("DEBUG: loop took "));
     Serial.println(millis() - loopMillis);
   }
   #endif

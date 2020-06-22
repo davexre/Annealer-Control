@@ -53,7 +53,7 @@ int timerCurrent = 0;
 void updateLCD(boolean full) {
   
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: updating the full LCD");
+  Serial.println(F("DEBUG: updating the full LCD"));
   #endif
 
   String outputFull;
@@ -63,10 +63,10 @@ void updateLCD(boolean full) {
     lcd.clear();
     lcd.setCursor(LCD_SETPOINT_LABEL);
     
-    outputFull.concat("Set ");
+    outputFull.concat(F("Set "));
     updateLCDSetPoint(false);
     outputFull.concat(output);
-    outputFull.concat(" Time ");
+    outputFull.concat(F(" Time "));
     updateLCDTimer(false);
     outputFull.concat(output);
     lcd.print(outputFull);
@@ -79,9 +79,9 @@ void updateLCD(boolean full) {
     // not sure why I need to do this, yet - the text "Amp "
     // doesn't print out, otherwise...
     lcd.setCursor(LCD_CURRENT_LABEL);
-    lcd.print("Amp ");
+    lcd.print(F("Amp "));
     lcd.setCursor(LCD_CURRENT_LABEL);
-    outputFull.concat("Amp ");
+    outputFull.concat(F("Amp "));
     updateLCDPowerDisplay("false");
     outputFull.concat(output);
     #ifdef DEBUG_LCD
@@ -92,7 +92,7 @@ void updateLCD(boolean full) {
 
     outputFull = "";
     lcd.setCursor(LCD_THERM1_LABEL);
-    outputFull.concat("Thrm ");
+    outputFull.concat(F("Thrm "));
     updateLCDTemps(false);
     outputFull.concat(output);
     lcd.print(outputFull);
@@ -101,7 +101,7 @@ void updateLCD(boolean full) {
     #endif
     
     lcd.setCursor(LCD_STATE_LABEL);
-    lcd.print("State:");
+    lcd.print(F("State:"));
 
     updateLCDState();
   }
@@ -114,14 +114,14 @@ void updateLCD(boolean full) {
   }
   
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: done updating LCD");
+  Serial.println(F("DEBUG: done updating LCD"));
   #endif
 }
 
 // no boolean, here - we're likely always going to just do this
 void updateLCDState() {
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print state");
+  Serial.println(F("DEBUG: LCD: print state"));
   #endif
   lcd.setCursor(LCD_STATE);
   lcd.print(annealStateDesc[annealState]);
@@ -134,7 +134,7 @@ void updateLCDState() {
 void updateLCDSetPoint(boolean sendIt) {
   
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print set point");
+  Serial.println(F("DEBUG: LCD: print set point"));
   #endif
   char c[6];
 
@@ -153,7 +153,7 @@ void updateLCDSetPoint(boolean sendIt) {
 // print most of the line at once! Save's us a cursor reposition and a print
 void updateLCDPowerDisplay(boolean sendIt) {
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print amps and volts");
+  Serial.println(F("DEBUG: LCD: print amps and volts"));
   #endif
 
   output = "";
@@ -161,25 +161,25 @@ void updateLCDPowerDisplay(boolean sendIt) {
   LCDremainder = (int) (amps * 100);
   LCDquotient = LCDremainder / 100;
   LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
+  if (LCDquotient < 10) output.concat(F(" "));
   output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
+  output.concat(F("."));
+  if (LCDremainder < 10) output.concat(F("0"));
   output.concat(LCDremainder);
 
-  output.concat(" Volt ");
+  output.concat(F(" Volt "));
 
   LCDremainder = (int) (volts * 100);
   LCDquotient = LCDremainder / 100;
   LCDremainder = LCDremainder % 100;
-  if (LCDquotient < 10) output.concat(" ");
+  if (LCDquotient < 10) output.concat(F(" "));
   output.concat(LCDquotient);
-  output.concat(".");
-  if (LCDremainder < 10) output.concat("0");
+  output.concat(F("."));
+  if (LCDremainder < 10) output.concat(F("0"));
   output.concat(LCDremainder);
 
   #ifdef DEBUG_LCD
-  Serial.print("DEBUG: updateLCDPowerDisplay output: "); Serial.println(output);
+  Serial.print(F("DEBUG: updateLCDPowerDisplay output: ")); Serial.println(output);
   #endif
 
   if (sendIt) {
@@ -192,7 +192,7 @@ void updateLCDPowerDisplay(boolean sendIt) {
 
 void updateLCDTemps(boolean sendIt) {
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print temperatures");
+  Serial.println(F("DEBUG: LCD: print temperatures"));
   #endif
 
   output = "";
@@ -201,21 +201,21 @@ void updateLCDTemps(boolean sendIt) {
   LCDquotient = LCDremainder / 10;
   LCDremainder = LCDremainder % 10;
   if (LCDquotient >= 100) {
-    output.concat(" ");
+    output.concat(F(" "));
     output.concat(LCDquotient);
   }
   else {
-    if (LCDquotient < 10) output.concat(" ");
+    if (LCDquotient < 10) output.concat(F(" "));
     output.concat(LCDquotient);
-    output.concat(".");
+    output.concat(F("."));
     output.concat(LCDremainder); // should be less than 10
   }
 
   #ifdef _AP3_VARIANT_H_
-  output.concat(" IntT  "); 
+  output.concat(F(" IntT  ")); 
   LCDremainder = (int) (internalTemp * 10);
   #else
-  output.concat(" TMax  ");
+  output.concat(F(" TMax  "));
   LCDremainder = (int) (Therm1TempHigh * 10);  
   #endif
   
@@ -223,13 +223,13 @@ void updateLCDTemps(boolean sendIt) {
   LCDremainder = LCDremainder % 10;
 
   if (LCDquotient >= 100) {
-    output.concat(" ");
+    output.concat(F(" "));
     output.concat(LCDquotient);
   }
   else {
-    if (LCDquotient < 10) output.concat(" ");
+    if (LCDquotient < 10) output.concat(F(" "));
     output.concat(LCDquotient);
-    output.concat(".");
+    output.concat(F("."));
     output.concat(LCDremainder); // should be less than 10
   }
   if (sendIt) {
@@ -242,7 +242,7 @@ void updateLCDTemps(boolean sendIt) {
 
 void updateLCDTimer(boolean sendIt) {
   #ifdef DEBUG_LCD
-  Serial.println("DEBUG: LCD: print timer");
+  Serial.println(F("DEBUG: LCD: print timer"));
   #endif
   
   output = "";
@@ -255,16 +255,16 @@ void updateLCDTimer(boolean sendIt) {
     timerCurrent = Timer.elapsed();
     LCDquotient = timerCurrent / 1000;
     LCDremainder = timerCurrent % 1000 / 10;
-    if (LCDquotient < 10) output.concat(" ");
+    if (LCDquotient < 10) output.concat(F(" "));
     output.concat(LCDquotient);
-    output.concat(".");
-    if (LCDremainder < 10) output.concat("0");
+    output.concat(F("."));
+    if (LCDremainder < 10) output.concat(F("0"));
     output.concat(LCDremainder);
   }
   else {
     // this is for all the wait states *AND* DROP_CASE, so we can show 0.00 at 
     // timer start
-    output.concat(" 0.00");
+    output.concat(F(" 0.00"));
   }
 
   if (sendIt) {

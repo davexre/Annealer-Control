@@ -114,12 +114,12 @@ void checkThermistors(boolean reset) {
       
       #ifdef DEBUG
       temp = analogRead(THERM1_PIN);
-      Serial.print("DEBUG: THERM1_PIN read: "); Serial.println(temp);
+      Serial.print(F("DEBUG: THERM1_PIN read: ")); Serial.println(temp);
       Therm1Avg = Therm1Avg + temp;
 
         #ifdef _AP3_VARIANT_H_
           temp = getInternalTemp();
-          Serial.print("DEBUG: ADC_INTERNAL_TEMP read: "); Serial.println(temp);
+          Serial.print(F("DEBUG: ADC_INTERNAL_TEMP read: ")); Serial.println(temp);
           internalTemp = internalTemp + temp ;
         #endif
       
