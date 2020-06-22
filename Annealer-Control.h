@@ -175,9 +175,9 @@
 #define LCD_STATE_LABEL     0,3
 #define LCD_STATE           7,3
 
-#define RED       255,0,0
-#define GREEN     0,255,0
-#define BLUE      0,0,255
+#define RED       255,20,20
+#define GREEN     20,255,20
+#define BLUE      70,70,255  // pure blue is too dark, so lighten it up a bit
 #define ORANGE    255,33,0
 #define YELLOW    255,255,0
 #define WHITE     255,255,255
