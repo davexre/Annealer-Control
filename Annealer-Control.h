@@ -32,7 +32,7 @@
 // #define DEBUG_LOOPTIMING
 // #define DEBUG_STATE
 // #define DEBUG_LCD
-#define DEBUG_MAYAN
+// #define DEBUG_MAYAN
 
 
 // Select the pin layout needed based on which annealer shield is in play. If none, 

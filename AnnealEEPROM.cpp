@@ -129,7 +129,7 @@ void eepromCheckAnnealSetPoint(void) {
     Serial.print(F("> annealSetPoint <"));
     Serial.print(annealSetPoint, 2);
     Serial.println(F(">"));
-    Serial.print("F(DEBUG: EEPROM floor of annealSetPoint * 100 = "));
+    Serial.print(F("DEBUG: EEPROM floor of annealSetPoint * 100 = "));
     Serial.println(floor((annealSetPoint * 100.00) + 0.5));
   #endif
   
