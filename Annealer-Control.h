@@ -152,6 +152,7 @@
 #define CASE_DROP_DELAY_DEFAULT   50      // hundredths of seconds
 #define ANNEAL_TIME_DEFAULT       10      // hundredths of seconds - for the timer formats
 #define DELAY_DEFAULT             50      // hundredths of seconds - for the timer formats
+#define OPTO_DELAY                250     // milliseconds
 #define CASE_NAME_DEFAULT         "unused      "
 #define LCD_STARTUP_INTERVAL      1000    // milliseconds - let the screen fire up and come online before we hit it
 #define LCD_UPDATE_INTERVAL       500     // milliseconds

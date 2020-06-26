@@ -21,6 +21,8 @@
   boolean stateChange = true;
 #endif
 
+boolean caseArrived = false;
+
 void annealStateMachine() {
 
     ///////////////////////////////////////////////////////////////////////
@@ -181,7 +183,7 @@ void annealStateMachine() {
         eepromCheckAnnealSetPoint();
 
         if (startOnOpto) {
-        
+          
           // check the sensor
           int opto1State = 0;
           opto1State = digitalRead(OPTO1_PIN);
@@ -191,13 +193,33 @@ void annealStateMachine() {
           #endif
 
           if (opto1State == LOW) { // there's a case waiting if the pin is LOW
-            annealState = START_ANNEAL;
-            lcd.setFastBacklight(RED);
-            updateLCDState();
+
+            if (caseArrived && Timer.hasPassed(OPTO_DELAY)) {
             
-            #ifdef DEBUG_STATE
-            stateChange = true;
-            #endif
+              annealState = START_ANNEAL;
+              lcd.setFastBacklight(RED);
+              updateLCDState();
+              
+              #ifdef DEBUG_STATE
+              stateChange = true;
+              #endif
+              
+            }
+            else if (! caseArrived) {
+              
+              Timer.restart();
+              caseArrived = true;
+              
+            }
+            // otherwise we're waiting on the timer to expire
+            
+          } 
+          else {
+
+            if (caseArrived && Timer.hasPassed(OPTO_DELAY)) { // if we waited OPTO_DELAY, but the case is no longer there...
+              caseArrived = false;
+            }
+            
           }
           
         }
